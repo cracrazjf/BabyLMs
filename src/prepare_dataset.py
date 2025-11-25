@@ -3,7 +3,7 @@ import pylangacq as pla
 from pathlib import Path
 from datasets import load_dataset
 import pickle
-from psychai.tokenizer.tokenizer import make_normalizer, make_pretokenizer, train_tokenizer, wrap_tokenizer, print_tokenizer
+from psychai.language import make_normalizer, make_pretokenizer, train_tokenizer, wrap_tokenizer, print_tokenizer
 
 def main():
     # all_reader = pickle.load(open("./data/childes/eng_na_reader.pkl", "rb"))
@@ -26,7 +26,6 @@ def main():
             with open(docs_path / f"doc_{i}.txt", "w", encoding="utf-8") as f:
                 f.write(doc)
             
-
     normalizer = make_normalizer(lowercase=True, 
                             strip=True, 
                             strip_left=True, 

@@ -1,6 +1,4 @@
-from psychai.nn_builder.nn_builder import ModelSpec
-from psychai.nn_builder.nn_builder import Model
-from psychai.nn_builder.io import save_config, build_config_dict, save_pretrained, from_pretrained
+from psychai.nn_builder import ModelSpec, Model, save_config, build_config_dict, save_pretrained, from_pretrained
 from transformers import AutoTokenizer
 
 def build_lstm(vocab_size, embed_size):
