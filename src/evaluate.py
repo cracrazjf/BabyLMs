@@ -33,7 +33,7 @@ def main():
         },
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./evaluation/gpt2",
-        "task": "cat_eval_B",
+        "task": "cohypo_eval_A",
         "layer_type": "h_2",
         "embed_type": "hidden",
         "device": "cuda"
@@ -80,7 +80,7 @@ def main():
     
     device = next(tm.mm.model.parameters()).device
     print(f"Model loaded on device: {device}")
-    
+
     dataset = None
     eval_fn = None
     if Path(f"{cfg.data.test_path}/eval_data/{cfg.task}.jsonl").exists() is False:
