@@ -125,9 +125,10 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     target_wc_pearsonr = pearson[wc_idx]
     embed_correct = target_cc_pearsonr > target_wc_pearsonr
 
-    results = []
+    lp_results = []
+    embed_results = []
     for i in range(0, input_ids.shape[0], 2):
-        results.append({
+        lp_results.append({
             "input": data[i]["input"],
             "correct category": data[i]["category"],
             "wrong category": data[i+1]["category"],
@@ -135,19 +136,26 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
             "wc_logprob": wc_lp[i//2].item(),
             "correct": lp_correct[i//2].item(),
             "margin": (cc_lp[i//2] - wc_lp[i//2]).item(),
+            "predictions": (predictions_list[i], predictions_list[i+1]),
+        })
+
+        embed_results.append({
+            "input": data[i]["input"],
+            "correct category": data[i]["category"],
+            "wrong category": data[i+1]["category"],
             "target_cc_pearsonr": target_cc_pearsonr[i//2].item(),
             "target_wc_pearsonr": target_wc_pearsonr[i//2].item(),
             "embed_correct": embed_correct[i//2].item(),
             "pearsonr_margin": (target_cc_pearsonr[i//2] - target_wc_pearsonr[i//2]).item(),
-            "predictions": (predictions_list[i], predictions_list[i+1]),
         })
 
-    num_examples = len(results)
-    accuracy = sum(r["correct"] for r in results) / num_examples if num_examples > 0 else 0.0
-    embed_accuracy = sum(r["embed_correct"] for r in results) / num_examples if num_examples > 0 else 0.0
+    num_examples = len(lp_results)
+    accuracy = sum(r["correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
+    embed_accuracy = sum(r["embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0
     print(f"cat_eval_A accuracy: {accuracy:.3f} over {num_examples} examples")
     print(f"cat_eval_C accuracy: {embed_accuracy:.3f} over {num_examples} examples")
-    save_results(results, f"{cfg.exp_dir}/cat_eval_A_results.jsonl")
+    save_results(lp_results, f"{cfg.exp_dir}/cat_eval_A_results.jsonl")
+    save_results(embed_results, f"{cfg.exp_dir}/cat_eval_C_results.jsonl")
 
     return {"accuracy": accuracy}   
 
@@ -285,9 +293,10 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
         embed_correct = target_c1_pearsonr > target_c4_pearsonr
 
 
-        results = []
+        lp_results = []
+        embed_results = []
         for i in range(0, B, 4):
-            results.append({
+            lp_results.append({
                 "input": data[i]["input"],
                 "c1_word": data[i]["c_word"],
                 "c2_word": data[i+1]["c_word"],
@@ -299,20 +308,30 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
                 "c4_logprob": c4_lp[i//4].item(),
                 "correct": lp_correct[i//4].item(),
                 "margin": c1_lp[i//4].item() - c4_lp[i//4].item(),
+                "predictions": (predictions_list[i], predictions_list[i+1], predictions_list[i+2], predictions_list[i+3]),
+            })
+
+            embed_results.append({
+                "input": data[i]["input"],
+                "c1_word": data[i]["c_word"],
+                "c2_word": data[i+1]["c_word"],
+                "c3_word": data[i+2]["c_word"],
+                "c4_word": data[i+3]["c_word"],
                 "target_c1_pearsonr": target_c1_pearsonr[i//4].item(),
                 "target_c2_pearsonr": target_c2_pearsonr[i//4].item(),
                 "target_c3_pearsonr": target_c3_pearsonr[i//4].item(),
                 "target_c4_pearsonr": target_c4_pearsonr[i//4].item(),
                 "embed_correct": embed_correct[i//4].item(),
                 "pearsonr_margin": target_c1_pearsonr[i//4].item() - target_c4_pearsonr[i//4].item(),
-                "predictions": (predictions_list[i], predictions_list[i+1], predictions_list[i+2], predictions_list[i+3]),
             })
-        num_examples = len(results)
-        accuracy = sum(r["correct"] for r in results) / num_examples if num_examples > 0 else 0.0
-        embed_accuracy = sum(r["embed_correct"] for r in results) / num_examples if num_examples > 0 else 0.0               
+            
+        num_examples = len(lp_results)
+        accuracy = sum(r["correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
+        embed_accuracy = sum(r["embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0               
         print(f"cohypo_eval_A accuracy: {accuracy:.3f} over {num_examples} examples")
         print(f"cohypo_eval_A embedding accuracy: {embed_accuracy:.3f} over {num_examples} examples")
-        save_results(results, f"{cfg.exp_dir}/cohypo_eval_A_results.jsonl")
+        save_results(lp_results, f"{cfg.exp_dir}/cohypo_eval_A_results.jsonl")
+        save_results(embed_results, f"{cfg.exp_dir}/cohypo_eval_C_results.jsonl")
         return {"accuracy": accuracy}
 
 def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
