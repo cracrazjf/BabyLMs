@@ -1,8 +1,6 @@
 import json
 import torch
-import time
 import numpy as np
-from numba import njit
 from datasets import load_dataset
 from itertools import chain
 from scipy.stats import pearsonr

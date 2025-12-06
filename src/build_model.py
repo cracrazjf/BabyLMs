@@ -133,7 +133,7 @@ def main():
     cfg = update_config(cfg, {
         "name": "gpt-2",
         "model_type": "transformer",
-        "path": "./models/gpt-2",
+        "path": "/root/autodl-tmp/models/gpt-2",
         "vocab_size": 50257,
         "embed_size": 768,
         "block_size": 1024,
