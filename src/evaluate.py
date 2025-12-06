@@ -79,6 +79,8 @@ def main():
     # create_counterbalance_data()
     
     device = next(tm.mm.model.parameters()).device
+    print(f"Model loaded on device: {device}")
+    
     dataset = None
     eval_fn = None
     if Path(f"{cfg.data.test_path}/eval_data/{cfg.task}.jsonl").exists() is False:
