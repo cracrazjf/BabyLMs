@@ -59,6 +59,10 @@ def main():
                         total += 1
                         if rec["correct"]:
                             correct += 1
+                    elif "embed_correct" in rec:
+                        total += 1
+                        if rec["embed_correct"]:
+                            correct += 1
 
             acc = correct / total if total > 0 else 0.0
             summary[task_name] = acc
