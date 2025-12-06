@@ -11,16 +11,18 @@ from prepare_dataset import prepare_evaluation_data, create_counterbalance_data
 
 def main():
     cfg = EvaluationConfig()
+    root_path = "/root/autodl-tmp/"
     updates = {
         "model": {
             "name": "gpt-2",
             "wrapper": "causal_lm",
-            "path": "./models/gpt-2",
+            "path": f"{root_path}models/gpt-2",
             "model_type": "custom",
-            "tokenizer_path": "./tokenizer/gpt2_tokenizer",
+            "tokenizer_path": f"{root_path}tokenizer/gpt2_tokenizer",
             "num_layers": 12,
         },
         "data": {
+            "test_path": f"{root_path}data/childes",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -31,7 +33,7 @@ def main():
         },
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./evaluation/gpt2",
-        "task": "cohypo_eval_A",
+        "task": "cat_eval_A",
         "layer_type": "h_2",
         "embed_type": "hidden",
         "device": "cpu"
@@ -79,30 +81,17 @@ def main():
     device = next(tm.mm.model.parameters()).device
     dataset = None
     eval_fn = None
-    if cfg.task == "cat_eval_A":
-        if Path("./data/childes/eval_data/cat_eval_A.jsonl").exists() is False:
+    if Path(f"{cfg.data.test_path}/eval_data/{cfg.task}.jsonl").exists() is False:
             prepare_evaluation_data(eval_type="cat_eval_A")
+    dataset = load_dataset("json", data_files=f"{cfg.data.test_path}/eval_data/{cfg.task}.jsonl", split="train")
 
-        dataset = load_dataset("json", data_files="./data/childes/eval_data/cat_eval_A.jsonl", split="train")
+    if cfg.task == "cat_eval_A":
         eval_fn = cat_eval_A
     elif cfg.task == "cat_eval_B":
-        if Path("./data/childes/eval_data/cat_eval_B.jsonl").exists() is False:
-            prepare_evaluation_data(eval_type="cat_eval_B")
-
-        dataset = load_dataset("json", data_files="./data/childes/eval_data/cat_eval_B.jsonl", split="train")
         eval_fn = cat_eval_B
-
     elif cfg.task == "cohypo_eval_A":
-        if Path("./data/childes/eval_data/cohypo_eval_A.jsonl").exists() is False:
-            prepare_evaluation_data(eval_type="cohypo_eval_A")
-
-        dataset = load_dataset("json", data_files="./data/childes/eval_data/cohypo_eval_A.jsonl", split="train")
         eval_fn = cohypo_eval_A
     elif cfg.task == "cohypo_eval_B":
-        if Path("./data/childes/eval_data/cohypo_eval_B.jsonl").exists() is False:
-            prepare_evaluation_data(eval_type="cohypo_eval_B")
-
-        dataset = load_dataset("json", data_files="./data/childes/eval_data/cohypo_eval_B.jsonl", split="train")
         eval_fn = cohypo_eval_B
 
     old_cols = dataset.column_names
