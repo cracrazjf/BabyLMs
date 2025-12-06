@@ -22,7 +22,7 @@ def main():
             "num_layers": 12,
         },
         "data": {
-            "test_path": f"{root_path}data/childes",
+            "test_path": f"{root_path}",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -82,7 +82,7 @@ def main():
     dataset = None
     eval_fn = None
     if Path(f"{cfg.data.test_path}/eval_data/{cfg.task}.jsonl").exists() is False:
-            prepare_evaluation_data(eval_type="cat_eval_A")
+        prepare_evaluation_data(eval_type="cat_eval_A")
     dataset = load_dataset("json", data_files=f"{cfg.data.test_path}/eval_data/{cfg.task}.jsonl", split="train")
 
     if cfg.task == "cat_eval_A":
