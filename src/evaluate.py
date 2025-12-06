@@ -36,7 +36,7 @@ def main():
         "task": "cat_eval_A",
         "layer_type": "h_2",
         "embed_type": "hidden",
-        "device": "cpu"
+        "device": "cuda"
     }
     cfg = update_config(cfg, updates)
 
