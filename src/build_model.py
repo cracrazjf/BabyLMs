@@ -75,7 +75,7 @@ def copy_gpt2_weights(model):
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')]
         from transformers import GPT2LMHeadModel, GPT2TokenizerFast
         tokenizer_hf = GPT2TokenizerFast.from_pretrained("gpt2")
-        tokenizer_hf.save_pretrained("./tokenizer/gpt2_tokenizer")
+        tokenizer_hf.save_pretrained("/root/autodl-tmp/tokenizer/gpt2_tokenizer")
         model_hf = GPT2LMHeadModel.from_pretrained("gpt2")
         sd_hf = model_hf.state_dict()
         
