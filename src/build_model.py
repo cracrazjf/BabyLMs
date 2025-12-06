@@ -128,7 +128,7 @@ def copy_gpt2_weights(model):
                     sd[k].copy_(renamed_sd_hf[k])
 
 def main():
-    tokenizer = AutoTokenizer.from_pretrained("./tokenizer/childes_tokenizer")
+    # tokenizer = AutoTokenizer.from_pretrained("./tokenizer/childes_tokenizer")
     cfg = ModelConfig()
     cfg = update_config(cfg, {
         "name": "gpt-2",
