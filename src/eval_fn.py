@@ -55,7 +55,7 @@ def get_embedding(start_pos, end_pos, input_ids, embeds, layer_name, embed_type=
     return embedding_mean
 
 def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
-    data = load_dataset("json", data_files="./data/childes/eval_data/cat_eval_A.jsonl", split="train")
+    data = load_dataset("json", data_files=f"{cfg.data.test_path}/eval_data/cat_eval_A.jsonl", split="train")
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
@@ -152,7 +152,7 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     return {"accuracy": accuracy}   
 
 def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
-    data = load_dataset("json", data_files="./data/childes/eval_data/cat_eval_B.jsonl", split="train")
+    data = load_dataset("json", data_files=f"{cfg.data.test_path}/eval_data/cat_eval_B.jsonl", split="train")
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
@@ -208,7 +208,7 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     return {"accuracy": accuracy}
   
 def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
-        data = load_dataset("json", data_files="./data/childes/eval_data/cohypo_eval_A.jsonl", split="train")
+        data = load_dataset("json", data_files=f"{cfg.data.test_path}/eval_data/cohypo_eval_A.jsonl", split="train")
         device = "cpu"
         pad_id = mm.tokenizer.pad_token_id
 
@@ -316,7 +316,7 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
         return {"accuracy": accuracy}
 
 def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
-    data = load_dataset("json", data_files="./data/childes/eval_data/cohypo_eval_B.jsonl", split="train")
+    data = load_dataset("json", data_files=f"{cfg.data.test_path}/eval_data/cohypo_eval_B.jsonl", split="train")
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
