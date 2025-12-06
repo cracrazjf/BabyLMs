@@ -33,7 +33,7 @@ def main():
         },
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./evaluation/gpt2",
-        "task": "cohypo_eval_B",
+        "task": "summary",
         "layer_type": "h_2",
         "embed_type": "hidden",
         "device": "cuda"
