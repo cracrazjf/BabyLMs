@@ -63,8 +63,10 @@ def main():
             acc = correct / total if total > 0 else 0.0
             summary[task_name] = acc
         print("Evaluation Summary:")
-        for task_name, acc in summary.items():
-            print(f"{task_name}: {acc:.3f}")
+        with open(os.path.join(cfg.exp_dir, "summary.txt"), "w", encoding="utf-8") as f:
+            for task_name, acc in summary.items():
+                f.write(f"{task_name}: {acc:.3f}\n")
+                print(f"{task_name}: {acc:.3f}")
         return
 
     tm = TrainingManager(cfg)
