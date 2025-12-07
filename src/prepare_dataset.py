@@ -112,70 +112,40 @@ def prepare_training_data():
 
 def create_counterbalance_data(path="./data/childes/flores_stimuli.xlsx"):
     df = pd.read_excel(path)
+    object_category_dict = {}
+    for idx, row in df.iterrows():
+        target = row["Target"]
+        category = row["Category"]
+        object_category_dict[target] = category
 
-    category_dict = dict(zip(df["Target"], df["Category"]))
+    df["category1"] = df["C1"].map(object_category_dict)
+    df["category2"] = df["C2"].map(object_category_dict)
+    df["category3"] = df["C3"].map(object_category_dict)
+    df["category4"] = df["C4"].map(object_category_dict)
 
-    def create_wrongcat_dict(df):
-        df["is_multi"] = df["Category"].str.split().str.len() > 1
-        wrongcat = {}
-
-        for is_multi, group in df.groupby("is_multi"):
-            targets = group["Target"].tolist()
-            cats = group["Category"].tolist()
-            unique = sorted(group["Category"].unique().tolist())
-            if len(unique) < 2:
-                raise ValueError(
-                    f"Group {'multi-word' if is_multi else 'single-word'} has fewer than "
-                    f"2 unique categories; cannot counterbalance within this group."
-                )
-            tgt2cat = dict(zip(targets, cats))
-
-            wrong_pool = {
-                tgt: [c for c in unique if c != tgt2cat[tgt]]
-                for tgt in targets
-            }
-
-            flat = []
-            for tgt in targets:
-                flat.extend(wrong_pool[tgt])
-
-            random.shuffle(flat)
-
-            remaining = flat.copy()
-
-            for tgt in targets:
-                true_cat = tgt2cat[tgt]
-                for wc in remaining:
-                    if wc != true_cat:
-                        wrongcat[tgt] = wc
-                        remaining.remove(wc)
-                        break
-        return wrongcat
-
-    wrongcat_dict = create_wrongcat_dict(df)
-    df["WrongCategory"] = df["Target"].map(wrongcat_dict)
-
-    cols = ["Category", "Target"]
-    for c in ["C1", "C2", "C3", "C4"]:
-        if c in df.columns:
-            cols.append(c)
-    cols.append("WrongCategory")
-
-    dataset_df = df[cols]
-
-    jsonl_path = "./data/childes/flores_stimuli_with_wrongcat.jsonl"
-
+    jsonl_path = "./data/childes/flores_stimuli_with_categories.jsonl"
     with open(jsonl_path, "w", encoding="utf-8") as f:
-        for _, row in dataset_df.iterrows():
-            rec = {col: row[col] for col in cols}
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        for idx, row in df.iterrows():
+            record = {
+                "Target": row["Target"],
+                "Category": row["Category"],
+                "C1": row["C1"],
+                "C2": row["C2"],
+                "C3": row["C3"],
+                "C4": row["C4"],
+                "Category1": row["category1"],
+                "Category2": row["category2"],
+                "Category3": row["category3"],
+                "Category4": row["category4"],
+            }
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     print("Saved:", jsonl_path)
 
 def prepare_evaluation_data(eval_type: str):
     records = []
     try:
-        with open("./data/childes/flores_stimuli_with_wrongcat.jsonl", "r", encoding="utf-8") as f:
+        with open("./data/childes/flores_stimuli_with_categories.jsonl", "r", encoding="utf-8") as f:
             for line in f:
                 records.append(json.loads(line))
     except:
@@ -200,97 +170,98 @@ def prepare_evaluation_data(eval_type: str):
 
     os.makedirs("./data/childes/eval_data", exist_ok=True)
 
-    if eval_type == "cat_eval_A":
-        path = "./data/childes/eval_data/cat_eval_A.jsonl"
-        with open(path, "w", encoding="utf-8") as f:
-            for rec in records:
-                target = rec["Target"]
-                correct_cat = rec["Category"]
-                wrong_cat = rec["WrongCategory"]
+    if "cat_eval_A" in eval_type:
+        prompts = {"prompt1": "Think of the category this object naturally belongs to. "}
 
-                prompt = "Think of the category this object naturally belongs to. "
+        question_templates = {
+                "type1": "{X} is {Y}.",
+                "type2": "{X} is a type of {Y}.",
+                "type3": "{X} belongs to {Y}."}
 
-                for i in range(2):
-                    if i == 0:
-                        input_text = f"{phrase(target)} is {phrase(correct_cat)}"
-                        f.write(json.dumps({
-                            "prompt": prompt,
-                            "input": input_text,
-                            "target": target,
-                            "category": correct_cat,
-                            "correct": True
-                        }, ensure_ascii=False) + "\n")
-                    else:
-                        input_text = f"{phrase(target)} is {phrase(wrong_cat)}"
-                        f.write(json.dumps({
-                            "prompt": prompt,
-                            "input": input_text,
-                            "target": target,
-                            "category": wrong_cat,
-                            "correct": False
-                        }, ensure_ascii=False) + "\n")
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in question_templates.items():
+                path = f"./data/childes/eval_data/cat_eval_A_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
+                        for i in range(3):
+                            input_text = template.format(X=phrase(target), Y=phrase(categories[i]))
+                            f.write(json.dumps({
+                                "prompt": prompt,
+                                "input": input_text,
+                                "target": target,
+                                "category": categories[i],
+                            }, ensure_ascii=False) + "\n")
 
-    if eval_type == "cat_eval_B":
-        path = "./data/childes/eval_data/cat_eval_B.jsonl"
-        with open(path, "w", encoding="utf-8") as f:
-            for rec in records:
-                target = rec["Target"]
-                correct_cat = rec["Category"]
-                wrong_cat = rec["WrongCategory"]
+    if "cat_eval_B" in eval_type:
+        prompts = {"prompt1": "Answer the following question with Yes or No. "}
 
-                prompt = "Answer the following question with Yes or No. "
+        question_templates = {
+                "type1": "Question: Is {X} {Y}? Answer: {Z}",
+                "type2": "Question: Is {X} a type of {Y}? Answer: {Z}",
+                "type3": "Question: Does {X} belong to {Y}? Answer: {Z}"
+        }
 
-                for i in range(2):
-                    if i == 0:
-                        input_text = f"Question: Is {phrase(target)} a type of {correct_cat}? Answer: Yes"
-                        answer = "Yes"
-                    else:
-                        input_text = f"Question: Is {phrase(target)} a type of {wrong_cat}? Answer: No"
-                        answer = "No"
-                    f.write(json.dumps({
-                        "prompt": prompt,
-                        "input": input_text,
-                        "answer": answer
-                    }, ensure_ascii=False) + "\n")
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in question_templates.items():
+                path = f"./data/childes/eval_data/cat_eval_B_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
+                        for i in range(3):
+                            input_text = template.format(X=phrase(target), Y=phrase(categories[i]), Z="Yes" if i == 0 else "No")
+                            f.write(json.dumps({
+                                "prompt": prompt,
+                                "input": input_text,
+                                "answer": "Yes" if i == 0 else "No",
+                                "target": target,
+                                "category": categories[i],
+                            }, ensure_ascii=False) + "\n")
+
     
-    if eval_type == "cohypo_eval_A":
-        path = "./data/childes/eval_data/cohypo_eval_A.jsonl"
-        with open(path, "w", encoding="utf-8") as f:
-            for rec in records:
-                target = rec["Target"]
-                cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
-
-                prompt = "Think of an object that is semantically similar. "
-                
-                for i in range(4):
-                    input_text = f"{phrase(target)} is like {phrase(cs[i])}"
-                    f.write(json.dumps({
-                        "prompt": prompt,
-                        "input": input_text,
-                        "target": target,
-                        "c_word": cs[i],
-                        "c": i+1,
-                    }, ensure_ascii=False) + "\n")
+    if "cohypo_eval_A" in eval_type:
+        prompts = {"prompt1": "Think of an object that is semantically similar. "}
+        question_templates = {
+                "type1": "{X} is like {Y}.",
+                "type2": "{X} is similar to {Y}.",
+        }
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in question_templates.items():
+                path = f"./data/childes/eval_data/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
+                        for i in range(4):
+                            input_text = template.format(X=phrase(target), Y=phrase(cs[i]))
+                            f.write(json.dumps({
+                                "prompt": prompt,
+                                "input": input_text,
+                                "target": target,
+                                "c_word": cs[i]
+                            }, ensure_ascii=False) + "\n")
                     
-    if eval_type == "cohypo_eval_B":
-        path = "./data/childes/eval_data/cohypo_eval_B.jsonl"
-        with open(path, "w", encoding="utf-8") as f:
-            for rec in records:
-                target = rec["Target"]
-                cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
-
-                prompt = "Answer the following question with Yes or No. "
-
-                for i in range(4):
-                    if i < 2:
-                        input_text = f"Question: Is {phrase(target)} like {phrase(cs[i])}? Answer: Yes"
-                        answer = "Yes"
-                    else:
-                        input_text = f"Question: Is {phrase(target)} like {phrase(cs[i])}? Answer: No"
-                        answer = "No"
-
-                    f.write(json.dumps({
-                        "prompt": prompt,
-                        "input": input_text,
-                        "answer": answer
-                    }, ensure_ascii=False) + "\n")
+    if "cohypo_eval_B" in eval_type:
+        prompts = {"prompt1": "Answer the following question with Yes or No. "}
+        question_templates = {
+                "type1": "Question: Is {X} like {Y}? Answer: {Z}",
+                "type2": "Question: Is {X} similar to {Y}? Answer: {Z}",
+        }
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in question_templates.items():
+                path = f"./data/childes/eval_data/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
+                        for i in range(4):
+                            input_text = template.format(X=phrase(target), Y=phrase(cs[i]), Z="Yes" if i < 2 else "No")
+                            f.write(json.dumps({
+                                "prompt": prompt,
+                                "input": input_text,
+                                "answer": "Yes" if i < 2 else "No",
+                                "target": target,
+                                "c_word": cs[i],
+                            }, ensure_ascii=False) + "\n")

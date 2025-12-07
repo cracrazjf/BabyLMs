@@ -127,6 +127,7 @@ def copy_gpt2_weights(model):
                 with torch.no_grad():
                     sd[k].copy_(renamed_sd_hf[k])
 
+
 def main():
     # tokenizer = AutoTokenizer.from_pretrained("./tokenizer/childes_tokenizer")
     cfg = ModelConfig()
