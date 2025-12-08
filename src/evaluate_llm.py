@@ -97,6 +97,7 @@ def main():
                         batch_size=cfg.data.batch_size, 
                         shuffle=False, 
                         collate_fn=collate_fn)
+
     
     tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
     
