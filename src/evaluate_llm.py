@@ -22,7 +22,7 @@ def main():
             "model_type": "llama",
         },
         "data": {
-            "test_path": f"{root_dir}eval_data/cat_eval_A_prompt1_type1.jsonl",
+            "test_path": f"{root_dir}eval_data/cohypo_eval_B_prompt1_type2.jsonl",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -34,8 +34,8 @@ def main():
         "root_dir": root_dir,
         "exp_name": "llama_8b_evaluation",
         "exp_dir": f"{root_dir}evaluation/llama_8b",
-        "task": "cat_eval_A_prompt1_type1",
-        "layer_of_interest": 0,
+        "task": "cohypo_eval_B_prompt1_type2",
+        "layer_of_interest": 2,
         "device": "cpu"
     }
     cfg = update_config(cfg, updates)

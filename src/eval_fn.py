@@ -45,7 +45,7 @@ def find_start_pos(seq, subseq):
             return i
     return -1
 
-def get_embedding(mm, start_pos, end_pos, input_ids, embeds):
+def get_embedding(start_pos, end_pos, input_ids, embeds):
     embeddings = []
     for pos in range(start_pos, end_pos): 
         assert embeds[pos]["token_id"] == input_ids[pos], f"Token ID mismatch in embeddings"
@@ -95,14 +95,12 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
         target_len = target.size(0)
         target_start = find_start_pos(input_ids[i], target)
         target_embedding = get_embedding(
-            mm=mm,
             start_pos=target_start,
             end_pos=target_start+target_len,
             input_ids=input_ids[i].tolist(),
             embeds=embeddings[i],
         )
         category_embedding = get_embedding(
-            mm=mm,
             start_pos=cat_logit_start[i]+1,
             end_pos=cat_logit_start[i]+1+L,
             input_ids=input_ids[i].tolist(),
