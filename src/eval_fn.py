@@ -50,7 +50,7 @@ def get_embedding(start_pos, end_pos, input_ids, embeds):
     for pos in range(start_pos, end_pos):
         assert embeds[pos]["token_id"] == input_ids[pos], "Token ID mismatch in embeddings"
         embeddings.append(embeds[pos]["embedding"])
-    embedding_mean = torch.mean(torch.stack(embeddings), dim=0)
+    embedding_mean = np.mean(embeddings, axis=0)
     return embedding_mean
 
 def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
