@@ -3,10 +3,10 @@ def configure_autodl_cache_dirs():
     env_vars = {
         "HF_HOME": "/root/autodl-tmp/cache",
         "HF_HUB_CACHE": "/root/autodl-tmp/cache/huggingface/hub",
-        "HF_DATASETS_CACHE": "/root/autodl-tmp/huggingface/datasets",
-        "TRANSFORMERS_CACHE": "/root/autodl-tmp/huggingface/transformers",
-        "TORCH_HOME": "/root/autodl-tmp/pytorch_cache",
-        "TORCH_HUB": "/root/autodl-tmp/torch_hub",
+        "HF_DATASETS_CACHE": "/root/autodl-tmp/cache/huggingface/datasets",
+        "TRANSFORMERS_CACHE": "/root/autodl-tmp/cache/huggingface/transformers",
+        "TORCH_HOME": "/root/autodl-tmp/cache/pytorch_cache",
+        "TORCH_HUB": "/root/autodl-tmp/cache/torch_hub",
     }
 
     for key, path in env_vars.items():
