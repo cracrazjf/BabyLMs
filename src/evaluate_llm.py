@@ -91,6 +91,7 @@ def main():
     
     tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
     
+    print(tm.mm.tokenizer.padding_side)
     collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
     
     loader = DataLoader(tokenized_dataset, 
