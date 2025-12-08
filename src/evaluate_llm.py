@@ -100,7 +100,7 @@ def main():
     for batch in loader:
         print(batch["attention_mask"])
 
-    # tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
+    tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
     
     
 if __name__ == "__main__":
