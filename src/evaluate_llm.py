@@ -51,6 +51,8 @@ def main():
         dtype=cfg.model.dtype
     )
 
+    tm.mm.tokenizer.padding_side = "right"
+
     device = next(tm.mm.model.parameters()).device
     print(f"Model loaded on device: {device}")
 
