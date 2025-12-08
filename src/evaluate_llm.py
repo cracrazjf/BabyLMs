@@ -22,7 +22,7 @@ def main():
             "model_type": "llama",
         },
         "data": {
-            "test_path": f"{root_dir}data/childes/eval_data/cat_eval_A_prompt1_type1.jsonl",
+            "test_path": f"{root_dir}eval_data/cat_eval_A_prompt1_type1.jsonl",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
