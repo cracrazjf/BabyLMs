@@ -49,7 +49,7 @@ def get_embedding(start_pos, end_pos, input_ids, embeds):
     embeddings = []
     for pos in range(start_pos, end_pos):
         assert embeds[pos]["token_id"] == input_ids[pos], "Token ID mismatch in embeddings"
-        embeddings.append(embeds[pos]["embedding"])
+        embeddings.append(embeds[pos]["embedding"].float())
     embedding_mean = np.mean(embeddings, axis=0)
     return embedding_mean
 
