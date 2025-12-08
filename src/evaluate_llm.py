@@ -51,8 +51,6 @@ def main():
         dtype=cfg.model.dtype
     )
 
-    tm.mm.tokenizer.padding_side = "right"
-
     device = next(tm.mm.model.parameters()).device
     print(f"Model loaded on device: {device}")
 
@@ -90,17 +88,19 @@ def main():
                                     num_proc=cfg.data.data_process_num_proc)
     
     tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
-    
-    print(tm.mm.tokenizer.padding_side)
+
+    tm.mm.tokenizer.padding_side = "right"
     collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
     
     loader = DataLoader(tokenized_dataset, 
                         batch_size=cfg.data.batch_size, 
                         shuffle=False, 
                         collate_fn=collate_fn)
-
     
-    tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
+    for batch in loader:
+        print(batch["attention_mask"])
+
+    # tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
     
     
 if __name__ == "__main__":
