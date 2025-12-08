@@ -45,9 +45,9 @@ def find_start_pos(seq, subseq):
             return i
     return -1
 
-def get_embedding(start_pos, end_pos, input_ids, embeds):
+def get_embedding(mm, start_pos, end_pos, input_ids, embeds):
     embeddings = []
-    for pos in range(start_pos, end_pos):
+    for pos in range(start_pos, end_pos): 
         print(mm.tokenizer.decode([input_ids[pos]]), embeds[pos]["token_str"])
         assert embeds[pos]["token_id"] == input_ids[pos], f"Token ID mismatch in embeddings"
         embeddings.append(embeds[pos]["embedding"].float())
