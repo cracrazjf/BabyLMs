@@ -22,7 +22,7 @@ def main():
             "num_layers": 12,
         },
         "data": {
-            "test_path": f"{root_dir}data/childes/eval_data/cohypo_eval_B_prompt1_type1.jsonl",
+            "test_path": f"{root_dir}data/childes/eval_data/cat_eval_A_prompt1_type1.jsonl",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -34,8 +34,8 @@ def main():
         "root_dir": root_dir,
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./evaluation/gpt2",
-        "task": "cohypo_eval_B_prompt1_type1",
-        "layer_type": "h_2",
+        "task": "cat_eval_A_prompt1_type1",
+        "layer_of_interest": "h_2",
         "embed_type": "hidden",
         "device": "cpu"
     }

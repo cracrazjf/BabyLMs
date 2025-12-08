@@ -45,13 +45,11 @@ def find_start_pos(seq, subseq):
             return i
     return -1
 
-def get_embedding(start_pos, end_pos, input_ids, embeds, layer_name, embed_type="embeddings"):
+def get_embedding(start_pos, end_pos, input_ids, embeds):
     embeddings = []
-    token_ids = []
     for pos in range(start_pos, end_pos):
         assert embeds[pos]["token_id"] == input_ids[pos], "Token ID mismatch in embeddings"
-        embeddings.append(embeds[pos]["layers"][layer_name][embed_type])
-        token_ids.append(embeds[pos]["token_id"])
+        embeddings.append(embeds[pos]["embedding"])
     embedding_mean = np.mean(embeddings, axis=0)
     return embedding_mean
 
@@ -101,16 +99,12 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
             end_pos=target_start+target_len,
             input_ids=input_ids[i].tolist(),
             embeds=embeddings[i],
-            layer_name=cfg.layer_type,
-            embed_type=cfg.embed_type
         )
         category_embedding = get_embedding(
             start_pos=cat_logit_start[i]+1,
             end_pos=cat_logit_start[i]+1+L,
             input_ids=input_ids[i].tolist(),
             embeds=embeddings[i],
-            layer_name=cfg.layer_type,
-            embed_type=cfg.embed_type
         )
         pearson[i] = torch.tensor(pearsonr(target_embedding, category_embedding)[0], device=device)
     
@@ -287,17 +281,13 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
             start_pos=target_start,
             end_pos=target_start+target_len,
             input_ids=input_ids[i].tolist(),
-            embeds=embeddings[i],
-            layer_name=cfg.layer_type,
-            embed_type=cfg.embed_type
+            embeds=embeddings[i]
         )
         category_embedding = get_embedding(
             start_pos=cword_logit_start[i]+1,
             end_pos=cword_logit_start[i]+1+L,
             input_ids=input_ids[i].tolist(),
-            embeds=embeddings[i],
-            layer_name=cfg.layer_type,
-            embed_type=cfg.embed_type
+            embeds=embeddings[i]
         )
         pearson[i] = torch.tensor(pearsonr(target_embedding, category_embedding)[0], device=device)
     
