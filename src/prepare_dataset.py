@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from collections import Counter
 from transformers import AutoTokenizer
-from psychai.language import make_normalizer, make_pretokenizer, train_tokenizer, wrap_tokenizer, print_tokenizer
+from psychai.language.tokenizer import make_normalizer, make_pretokenizer, train_tokenizer, wrap_tokenizer, print_tokenizer
 
 def prepare_training_data():
     text_docs_path = Path("./data/childes/text_docs")
