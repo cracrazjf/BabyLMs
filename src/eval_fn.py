@@ -58,9 +58,9 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
-    logits = pad_and_concat([torch.from_numpy(logit).to(device) for logit in logits], pad_value=0.0)
-    input_ids = pad_and_concat([torch.from_numpy(input).to(device) for input in inputs], pad_value=pad_id)
-    predictions = pad_and_concat([torch.from_numpy(prediction).to(device) for prediction in predictions], pad_value=-100)
+    logits = pad_and_concat([logit.to(device) for logit in logits], pad_value=0.0)
+    input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
+    predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
     embeddings = list(chain.from_iterable(embeds))
 
     log_prob = F.log_softmax(logits, dim=-1)
@@ -174,9 +174,9 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
-    logits = pad_and_concat([torch.from_numpy(logit).to(device) for logit in logits], pad_value=0.0)
-    input_ids = pad_and_concat([torch.from_numpy(input).to(device) for input in inputs], pad_value=pad_id)
-    predictions = pad_and_concat([torch.from_numpy(prediction).to(device) for prediction in predictions], pad_value=-100)
+    logits = pad_and_concat([logit.to(device) for logit in logits], pad_value=0.0)
+    input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
+    predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
 
     yes_ids = torch.tensor(
         mm.tokenizer(" " + "Yes", add_special_tokens=False)["input_ids"],
@@ -239,9 +239,9 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
-    logits = pad_and_concat([torch.from_numpy(logit).to(device) for logit in logits], pad_value=0.0)
-    input_ids = pad_and_concat([torch.from_numpy(input).to(device) for input in inputs], pad_value=pad_id)
-    predictions = pad_and_concat([torch.from_numpy(prediction).to(device) for prediction in predictions], pad_value=-100)
+    logits = pad_and_concat([logit.to(device) for logit in logits], pad_value=0.0)
+    input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
+    predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
     embeddings = list(chain.from_iterable(embeds))
 
     log_prob = F.log_softmax(logits, dim=-1)
@@ -363,9 +363,9 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     device = "cpu"
     pad_id = mm.tokenizer.pad_token_id
 
-    logits = pad_and_concat([torch.from_numpy(logit).to(device) for logit in logits], pad_value=0.0)
-    input_ids = pad_and_concat([torch.from_numpy(input).to(device) for input in inputs], pad_value=pad_id)
-    predictions = pad_and_concat([torch.from_numpy(prediction).to(device) for prediction in predictions], pad_value=-100)
+    logits = pad_and_concat([logit.to(device) for logit in logits], pad_value=0.0)
+    input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
+    predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
 
     yes_ids = torch.tensor(
         mm.tokenizer(" Yes", add_special_tokens=False)["input_ids"],
