@@ -48,7 +48,7 @@ def find_start_pos(seq, subseq):
 def get_embedding(mm, start_pos, end_pos, input_ids, embeds):
     embeddings = []
     for pos in range(start_pos, end_pos):
-        assert embeds[pos]["token_id"] == input_ids[pos], f"Token ID {mm.tokenizer.decode([embeds[pos]['token_id']])} mismatch {mm.tokenizer.decode([input_ids[pos]])} in embeddings"
+        assert embeds[pos]["token_id"] == input_ids[pos], f"Token ID {embeds[pos]['token_id']} mismatch {input_ids[pos]} in embeddings"
         embeddings.append(embeds[pos]["embedding"].float())
     embedding_mean = np.mean(embeddings, axis=0)
     return embedding_mean
