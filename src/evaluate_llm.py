@@ -96,9 +96,9 @@ def main():
                         batch_size=cfg.data.batch_size, 
                         shuffle=False, 
                         collate_fn=collate_fn)
-    
     for batch in loader:
-        print(batch["attention_mask"])
+        print(f"Attention mask before entering model: {batch['attention_mask']}")
+    
     tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
     
     
