@@ -1,5 +1,5 @@
-from psychai.config import EvaluationConfig, update_config
 from psychai.language.llm import ModelManager
+from psychai.config import EvaluationConfig, update_config
 import os
 import json
 from pathlib import Path
