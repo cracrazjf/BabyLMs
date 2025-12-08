@@ -1,4 +1,7 @@
 import os
+from utils import configure_autodl_cache_dirs, configure_hf_endpoint
+configure_autodl_cache_dirs()
+configure_hf_endpoint()
 import json
 from pathlib import Path
 from torch.utils.data import DataLoader
