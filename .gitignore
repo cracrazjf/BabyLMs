@@ -4,3 +4,4 @@
 !src/
 !src/**
 *.pyc
+__pycache__/
