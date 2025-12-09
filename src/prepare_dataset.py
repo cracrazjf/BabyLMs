@@ -170,16 +170,16 @@ def prepare_evaluation_data(eval_type: str):
 
     os.makedirs("./data/childes/eval_data", exist_ok=True)
 
-    if "cat_eval_A" in eval_type:
+    def create_cat_eval_A():
         prompts = {"prompt1": "Think of the category this object naturally belongs to. "}
 
-        question_templates = {
-                "type1": "{X} is {Y}.",
-                "type2": "{X} is a type of {Y}.",
-                "type3": "{X} belongs to {Y}."}
+        input_templates = {
+                "input1": "{X} is {Y}.",
+                "input2": "{X} is a type of {Y}.",
+                "input3": "{X} belongs to {Y}."}
 
         for prompt_name, prompt in prompts.items():
-            for type_name, template in question_templates.items():
+            for type_name, template in input_templates.items():
                 path = f"./data/childes/eval_data/cat_eval_A_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
@@ -194,17 +194,20 @@ def prepare_evaluation_data(eval_type: str):
                                 "category": categories[i],
                             }, ensure_ascii=False) + "\n")
 
-    if "cat_eval_B" in eval_type:
+    if "cat_eval_A" in eval_type:
+        create_cat_eval_A()
+    
+    def create_cat_eval_B():
         prompts = {"prompt1": "Answer the following question with Yes or No. "}
 
-        question_templates = {
-                "type1": "Question: Is {X} {Y}? Answer: {Z}",
-                "type2": "Question: Is {X} a type of {Y}? Answer: {Z}",
-                "type3": "Question: Does {X} belong to {Y}? Answer: {Z}"
+        input_templates = {
+                "input1": "Is {X} {Y}? Answer: {Z}",
+                "input2": "Is {X} a type of {Y}? Answer: {Z}",
+                "input3": "Does {X} belong to {Y}? Answer: {Z}"
         }
 
         for prompt_name, prompt in prompts.items():
-            for type_name, template in question_templates.items():
+            for type_name, template in input_templates.items():
                 path = f"./data/childes/eval_data/cat_eval_B_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
@@ -215,20 +218,21 @@ def prepare_evaluation_data(eval_type: str):
                             f.write(json.dumps({
                                 "prompt": prompt,
                                 "input": input_text,
-                                "answer": "Yes" if i == 0 else "No",
                                 "target": target,
                                 "category": categories[i],
                             }, ensure_ascii=False) + "\n")
+    if "cat_eval_B" in eval_type:
+        create_cat_eval_B()
 
-    
-    if "cohypo_eval_A" in eval_type:
+    def create_cohypo_eval_A():
         prompts = {"prompt1": "Think of an object that is semantically similar. "}
-        question_templates = {
-                "type1": "{X} is like {Y}.",
-                "type2": "{X} is similar to {Y}.",
+        input_templates = {
+                "input1": "{X} is like {Y}.",
+                "input2": "{X} is similar to {Y}.",
+                "input3": "{X} equals {Y}.",
         }
         for prompt_name, prompt in prompts.items():
-            for type_name, template in question_templates.items():
+            for type_name, template in input_templates.items():
                 path = f"./data/childes/eval_data/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
@@ -242,15 +246,18 @@ def prepare_evaluation_data(eval_type: str):
                                 "target": target,
                                 "c_word": cs[i]
                             }, ensure_ascii=False) + "\n")
-                    
-    if "cohypo_eval_B" in eval_type:
+    if "cohypo_eval_A" in eval_type:
+        create_cohypo_eval_A()
+
+    def create_cohypo_eval_B():
         prompts = {"prompt1": "Answer the following question with Yes or No. "}
-        question_templates = {
-                "type1": "Question: Is {X} like {Y}? Answer: {Z}",
-                "type2": "Question: Is {X} similar to {Y}? Answer: {Z}",
+        input_templates = {
+                "input1": "Is {X} like {Y}? Answer: {Z}",
+                "input2": "Is {X} similar to {Y}? Answer: {Z}",
+                "input3": "Does {X} equal {Y}? Answer: {Z}",
         }
         for prompt_name, prompt in prompts.items():
-            for type_name, template in question_templates.items():
+            for type_name, template in input_templates.items():
                 path = f"./data/childes/eval_data/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
@@ -261,7 +268,15 @@ def prepare_evaluation_data(eval_type: str):
                             f.write(json.dumps({
                                 "prompt": prompt,
                                 "input": input_text,
-                                "answer": "Yes" if i < 2 else "No",
                                 "target": target,
                                 "c_word": cs[i],
                             }, ensure_ascii=False) + "\n")
+                    
+    if "cohypo_eval_B" in eval_type:
+        create_cohypo_eval_B()
+
+    if eval_type == "all":
+        create_cat_eval_A()
+        create_cat_eval_B()
+        create_cohypo_eval_A()
+        create_cohypo_eval_B()

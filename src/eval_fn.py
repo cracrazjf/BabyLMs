@@ -31,12 +31,6 @@ def pad_and_concat(tensors, pad_value=0.0):
             padded.append(t)
         return torch.cat(padded, dim=0)
 
-def save_results(data, out_path):
-    with open(out_path, "w", encoding="utf-8") as f:
-        for rec in data:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"Saved results to {out_path}")
-
 def find_start_pos(seq, subseq):
     T = seq.size(0)
     L = subseq.size(0)
@@ -123,51 +117,31 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     cc_wc1_embed_correct = target_cc_pearsonr > target_wc1_pearsonr
     cc_wc2_embed_correct = target_cc_pearsonr > target_wc2_pearsonr
 
-    lp_results = []
-    embed_results = []
+    results = []
     for i in range(0, input_ids.shape[0], 3):
-        lp_results.append({
+        results.append({
             "input": data[i]["input"],
-            "correct category": data[i]["category"],
-            "wc1 category": data[i+1]["category"],
-            "wc2 category": data[i+2]["category"],
-            # "cc_logprob": cc_lp[i//3].item(),
-            # "wc1_logprob": wc1_lp[i//3].item(),
-            # "wc2_logprob": wc2_lp[i//3].item(),
-            "cc_wc1_correct": cc_wc1_lp_correct[i//3].item(),
-            "cc_wc2_correct": cc_wc2_lp_correct[i//3].item(),
-            # "cc_wc1_margin": (cc_lp[i//3] - wc1_lp[i//3]).item(),
-            # "cc_wc2_margin": (cc_lp[i//3] - wc2_lp[i//3]).item(),
-            "predictions": (predictions_list[i], predictions_list[i+1]),
+            "cc": data[i]["category"],
+            "wc1": data[i+1]["category"],
+            "wc2": data[i+2]["category"],
+            "cc_wc1_logprob": cc_wc1_lp_correct[i//3].item(),
+            "cc_wc2_logprob": cc_wc2_lp_correct[i//3].item(),
+            "cc_wc1_embed": cc_wc1_embed_correct[i//3].item(),
+            "cc_wc2_embed": cc_wc2_embed_correct[i//3].item(),
+            "preds": (predictions_list[i], predictions_list[i+1]),
         })
 
-        embed_results.append({
-            "input": data[i]["input"],
-            "correct category": data[i]["category"],
-            "wc1 category": data[i+1]["category"],
-            "wc2 category": data[i+2]["category"],
-            # "target_cc_pearsonr": target_cc_pearsonr[i//3].item(),
-            # "target_wc1_pearsonr": target_wc1_pearsonr[i//3].item(),
-            # "target_wc2_pearsonr": target_wc2_pearsonr[i//3].item(),
-            "cc_wc1_embed_correct": cc_wc1_embed_correct[i//3].item(),
-            "cc_wc2_embed_correct": cc_wc2_embed_correct[i//3].item(),
-            # "cc_wc1_pearsonr_margin": (target_cc_pearsonr[i//3] - target_wc1_pearsonr[i//3]).item(),
-            # "cc_wc2_pearsonr_margin": (target_cc_pearsonr[i//3] - target_wc2_pearsonr[i//3]).item(),
-        })
+    num_examples = len(results)
+    accuracy = sum(r["cc_wc2_logprob"] for r in results) / num_examples 
+    wc1_accuracy = sum(r["cc_wc1_logprob"] for r in results) / num_examples 
+    embed_accuracy = sum(r["cc_wc2_embed"] for r in results) / num_examples 
+    wc1_embed_accuracy = sum(r["cc_wc1_embed"] for r in results) / num_examples 
+    print(f"(wc1) lp accuracy: {wc1_accuracy:.3f}")
+    print(f"(wc2) lp accuracy: {accuracy:.3f}")
+    print(f"(wc1) embed accuracy: {wc1_embed_accuracy:.3f}")
+    print(f"(wc2) embed accuracy: {embed_accuracy:.3f}")
 
-    num_examples = len(lp_results)
-    accuracy = sum(r["cc_wc2_correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
-    wc1_accuracy = sum(r["cc_wc1_correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
-    embed_accuracy = sum(r["cc_wc2_embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0
-    wc1_embed_accuracy = sum(r["cc_wc1_embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0
-    print(f"cat_eval_A (wc1) accuracy: {wc1_accuracy:.3f} over {num_examples} examples")
-    print(f"cat_eval_A (wc2) accuracy: {accuracy:.3f} over {num_examples} examples")
-    print(f"cat_eval_C (wc1) accuracy: {wc1_embed_accuracy:.3f} over {num_examples} examples")
-    print(f"cat_eval_C (wc2) accuracy: {embed_accuracy:.3f} over {num_examples} examples")
-    save_results(lp_results, f"{cfg.exp_dir}/{cfg.task}_results.jsonl")
-    save_results(embed_results, f"{cfg.exp_dir}/{cfg.task}_embed_results.jsonl")
-
-    return {"accuracy": accuracy}   
+    return results
 
 def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     data = load_dataset("json", data_files=f"{cfg.data.test_path}", split="train")
@@ -201,22 +175,22 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     lp_slice = log_prob.gather(1, token_positions[:, :, None].expand(B, L, V))
     pred_slice = predictions.gather(1, token_positions)
                                          
-    yes_lp = lp_slice.gather(2, yes_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)   # → [B]
-    no_lp = lp_slice.gather(2, no_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)   # → [B]
+    yes_lp = lp_slice.gather(2, yes_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
+    no_lp = lp_slice.gather(2, no_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
 
-    true_is_yes = torch.tensor([a.strip().lower() == "yes" for a in data["answer"]],device=device)
+    # true_is_yes = torch.tensor([a.strip().lower() == "yes" for a in data["answer"]],device=device)
+    # correct = torch.where(true_is_yes, yes_lp > no_lp, no_lp > yes_lp)
 
-    correct = torch.where(true_is_yes, yes_lp > no_lp, no_lp > yes_lp)
+    saying_yes = yes_lp > no_lp
     cc_idx = torch.arange(0, B, 3, device=device)
     wc1_idx  = torch.arange(1, B, 3, device=device)
     wc2_idx  = torch.arange(2, B, 3, device=device)
-    cc_accuracy = correct[cc_idx].float().mean().item()
-    wc1_accuracy = correct[wc1_idx].float().mean().item()
-    wc2_accuracy = correct[wc2_idx].float().mean().item()
-    overall_accuracy = correct.float().mean().item()
-    print(f"cat_eval_B cc yes/no accuracy: {cc_accuracy:.3f} over {len(cc_idx)} examples")
-    print(f"cat_eval_B wc1 yes/no accuracy: {wc1_accuracy:.3f} over {len(wc1_idx)} examples")
-    print(f"cat_eval_B wc2 yes/no accuracy: {wc2_accuracy:.3f} over {len(wc2_idx)} examples")
+    cc_yes_precent = saying_yes[cc_idx].float().mean().item()
+    wc1_yes_percent = saying_yes[wc1_idx].float().mean().item()
+    wc2_yes_percent = saying_yes[wc2_idx].float().mean().item()
+    print(f"cc yes percent: {cc_yes_precent:.3f}")
+    print(f"wc1 yes percent: {wc1_yes_percent:.3f}")
+    print(f"wc2 yes percent: {wc2_yes_percent:.3f}")
 
     results = []
     for i in range(0, input_ids.shape[0], 3):
@@ -224,15 +198,14 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
             "cc_input": data[i]["input"],
             "wc1_input": data[i+1]["input"],
             "wc2_input": data[i+2]["input"],
-            "cc_correct": correct[i].item(),
-            "wc1_correct": correct[i+1].item(),
-            "wc2_correct": correct[i+2].item(),
-            "predictions": (mm.tokenizer.decode(pred_slice[i].tolist()),
-                            mm.tokenizer.decode(pred_slice[i+1].tolist()),
-                            mm.tokenizer.decode(pred_slice[i+2].tolist())),
+            "cc_yes_percent": saying_yes[i].item(),
+            "wc1_yes_percent": saying_yes[i+1].item(),
+            "wc2_yes_percent": saying_yes[i+2].item(),
+            "preds": (mm.tokenizer.decode(pred_slice[i].tolist()),
+                      mm.tokenizer.decode(pred_slice[i+1].tolist()),
+                      mm.tokenizer.decode(pred_slice[i+2].tolist())),
         })
-    save_results(results, f"{cfg.exp_dir}/{cfg.task}_results.jsonl")
-    return {"accuracy": overall_accuracy}
+    return results
   
 def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     data = load_dataset("json", data_files=f"{cfg.data.test_path}", split="train")
@@ -308,55 +281,44 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     target_c2_pearsonr = pearson[c2_idx]
     target_c3_pearsonr = pearson[c3_idx]
     target_c4_pearsonr = pearson[c4_idx]
+
     c1_c2_embed_correct = target_c1_pearsonr > target_c2_pearsonr
     c1_c3_embed_correct = target_c1_pearsonr > target_c3_pearsonr
     c1_c4_embed_correct = target_c1_pearsonr > target_c4_pearsonr
 
 
-    lp_results = []
-    embed_results = []
+    results = []
     for i in range(0, B, 4):
-        lp_results.append({
+        results.append({
             "input": data[i]["input"],
-            "c1_word": data[i]["c_word"],
-            "c2_word": data[i+1]["c_word"],
-            "c3_word": data[i+2]["c_word"],
-            "c4_word": data[i+3]["c_word"],
-            "c1_c2_correct": c1_c2_correct[i//4].item(),
-            "c1_c3_correct": c1_c3_correct[i//4].item(),
-            "c1_c4_correct": c1_c4_correct[i//4].item(),
-            "predictions": (predictions_list[i], predictions_list[i+1], predictions_list[i+2], predictions_list[i+3]),
-        })
-
-        embed_results.append({
-            "input": data[i]["input"],
-            "c1_word": data[i]["c_word"],
-            "c2_word": data[i+1]["c_word"],
-            "c3_word": data[i+2]["c_word"],
-            "c4_word": data[i+3]["c_word"],
-            "c1_c2_embed_correct": c1_c2_embed_correct[i//4].item(),
-            "c1_c3_embed_correct": c1_c3_embed_correct[i//4].item(),
-            "c1_c4_embed_correct": c1_c4_embed_correct[i//4].item(),
+            "c1": data[i]["c_word"],
+            "c2": data[i+1]["c_word"],
+            "c3": data[i+2]["c_word"],
+            "c4": data[i+3]["c_word"],
+            "c1_c2_logprob": c1_c2_correct[i//4].item(),
+            "c1_c3_logprob": c1_c3_correct[i//4].item(),
+            "c1_c4_logprob": c1_c4_correct[i//4].item(),
+            "c1_c2_embed": c1_c2_embed_correct[i//4].item(),
+            "c1_c3_embed": c1_c3_embed_correct[i//4].item(),
+            "c1_c4_embed": c1_c4_embed_correct[i//4].item(),
+            "preds": (predictions_list[i], predictions_list[i+1], predictions_list[i+2], predictions_list[i+3]),
         })
         
-    num_examples = len(lp_results)
-    c1_c2_accuracy = sum(r["c1_c2_correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
-    c1_c2_embed_accuracy = sum(r["c1_c2_embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0               
-    c1_c3_accuracy = sum(r["c1_c3_correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
-    c1_c3_embed_accuracy = sum(r["c1_c3_embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0
-    c1_c4_accuracy = sum(r["c1_c4_correct"] for r in lp_results) / num_examples if num_examples > 0 else 0.0
-    c1_c4_embed_accuracy = sum(r["c1_c4_embed_correct"] for r in embed_results) / num_examples if num_examples > 0 else 0.0
+    num_examples = len(results)
+    c1_c2_accuracy = sum(r["c1_c2_logprob"] for r in results) / num_examples
+    c1_c2_embed_accuracy = sum(r["c1_c2_embed"] for r in results) / num_examples              
+    c1_c3_accuracy = sum(r["c1_c3_logprob"] for r in results) / num_examples
+    c1_c3_embed_accuracy = sum(r["c1_c3_embed"] for r in results) / num_examples
+    c1_c4_accuracy = sum(r["c1_c4_logprob"] for r in results) / num_examples
+    c1_c4_embed_accuracy = sum(r["c1_c4_embed"] for r in results) / num_examples
 
-    print(f"cohypo_eval_A (c1_c2) accuracy: {c1_c2_accuracy:.3f} over {num_examples} examples")
-    print(f"cohypo_eval_A (c1_c3) accuracy: {c1_c3_accuracy:.3f} over {num_examples} examples")
-    print(f"cohypo_eval_A (c1_c4) accuracy: {c1_c4_accuracy:.3f} over {num_examples} examples")
-    print(f"cohypo_eval_A (c1_c2) embedding accuracy: {c1_c2_embed_accuracy:.3f} over {num_examples} examples")
-    print(f"cohypo_eval_A (c1_c3) embedding accuracy: {c1_c3_embed_accuracy:.3f} over {num_examples} examples")
-    print(f"cohypo_eval_A (c1_c4) embedding accuracy: {c1_c4_embed_accuracy:.3f} over {num_examples} examples")
-
-    save_results(lp_results, f"{cfg.exp_dir}/{cfg.task}_results.jsonl")
-    save_results(embed_results, f"{cfg.exp_dir}/{cfg.task}_embed_results.jsonl")
-    return {"accuracy": c1_c4_accuracy}
+    print(f"(c1_c2) lp accuracy: {c1_c2_accuracy:.3f}")
+    print(f"(c1_c3) lp accuracy: {c1_c3_accuracy:.3f}")
+    print(f"(c1_c4) lp accuracy: {c1_c4_accuracy:.3f}")
+    print(f"(c1_c2) embed accuracy: {c1_c2_embed_accuracy:.3f}")
+    print(f"(c1_c3) embed accuracy: {c1_c3_embed_accuracy:.3f}")
+    print(f"(c1_c4) embed accuracy: {c1_c4_embed_accuracy:.3f}")
+    return results
 
 def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     data = load_dataset("json", data_files=f"{cfg.data.test_path}", split="train")
@@ -397,8 +359,6 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
 
     # correct = torch.where(true_is_yes, yes_lp > no_lp, no_lp > yes_lp)
     saying_yes = yes_lp > no_lp
-    # margin = yes_lp - no_lp
-    overall_saying_yes = saying_yes.float().mean().item()
     c1_idx = torch.arange(0, B, 4, device=device)
     c2_idx  = torch.arange(1, B, 4, device=device)
     c3_idx  = torch.arange(2, B, 4, device=device)
@@ -407,12 +367,10 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     c2_yes_precent = saying_yes[c2_idx].float().mean().item()
     c3_yes_precent = saying_yes[c3_idx].float().mean().item()
     c4_yes_precent = saying_yes[c4_idx].float().mean().item()
-    print(f"cohypo_eval_B c1 yes precentage: {c1_yes_precent:.3f} over {len(c1_idx)} examples")
-    print(f"cohypo_eval_B c2 yes precentage: {c2_yes_precent:.3f} over {len(c2_idx)} examples")
-    print(f"cohypo_eval_B c3 yes precentage: {c3_yes_precent:.3f} over {len(c3_idx)} examples")
-    print(f"cohypo_eval_B c4 yes precentage: {c4_yes_precent:.3f} over {len(c4_idx)} examples")
-    print(f"cohypo_eval_B yes precentage: {overall_saying_yes:.3f} over {len(data['answer'])} examples")
-
+    print(f"c1 yes precentage: {c1_yes_precent:.3f}")
+    print(f"c2 yes precentage: {c2_yes_precent:.3f}")
+    print(f"c3 yes precentage: {c3_yes_precent:.3f}")
+    print(f"c4 yes precentage: {c4_yes_precent:.3f}")
     results = []
     for i in range(0, input_ids.shape[0], 4):
         results.append({
@@ -420,16 +378,15 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
             "c2_input": data[i+1]["input"],
             "c3_input": data[i+2]["input"],
             "c4_input": data[i+3]["input"],
-            "c1_yes_precent": saying_yes[i].item(),
-            "c2_yes_precent": saying_yes[i+1].item(),
-            "c3_yes_precent": saying_yes[i+2].item(),
-            "c4_yes_precent": saying_yes[i+3].item(),
-            "predictions": (mm.tokenizer.decode(pred_slice[i].tolist()),
-                            mm.tokenizer.decode(pred_slice[i+1].tolist()),
-                            mm.tokenizer.decode(pred_slice[i+2].tolist()),
-                            mm.tokenizer.decode(pred_slice[i+3].tolist())),
+            "c1_yes_percent": saying_yes[i].item(),
+            "c2_yes_percent": saying_yes[i+1].item(),
+            "c3_yes_percent": saying_yes[i+2].item(),
+            "c4_yes_percent": saying_yes[i+3].item(),
+            "preds": (mm.tokenizer.decode(pred_slice[i].tolist()),
+                      mm.tokenizer.decode(pred_slice[i+1].tolist()),
+                      mm.tokenizer.decode(pred_slice[i+2].tolist()),
+                      mm.tokenizer.decode(pred_slice[i+3].tolist())),
         })
-    save_results(results, f"{cfg.exp_dir}/{cfg.task}_results.jsonl")
-    return {"accuracy": overall_saying_yes}
+    return results
 
     

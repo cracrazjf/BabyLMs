@@ -17,3 +17,4 @@ def configure_autodl_cache_dirs():
 
 def configure_hf_endpoint():
     os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
