@@ -56,6 +56,7 @@ def main():
             elif "cohypo_eval_B" in f.name:
                 cohypo_eval_B_files.append(str(f))
 
+
     if "cat_eval_A" in cfg.task:
         test_files = cat_eval_A_files
     elif "cat_eval_B" in cfg.task:
