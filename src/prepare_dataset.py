@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 from collections import Counter
 from transformers import AutoTokenizer
+from psychai.language import load_any_as_chat
 from psychai.language.tokenizer import make_normalizer, make_pretokenizer, train_tokenizer, wrap_tokenizer, print_tokenizer
 
 def prepare_training_data():
@@ -168,7 +169,7 @@ def prepare_evaluation_data(eval_type: str):
         article = _a_or_an(noun)
         return f"{article} {noun}".strip()
 
-    os.makedirs("./data/childes/eval_data", exist_ok=True)
+    os.makedirs("./data/childes/plain_eval_data", exist_ok=True)
 
     def create_cat_eval_A():
         prompts = {"prompt1": "Think of the category this object naturally belongs to. "}
@@ -180,7 +181,7 @@ def prepare_evaluation_data(eval_type: str):
 
         for prompt_name, prompt in prompts.items():
             for type_name, template in input_templates.items():
-                path = f"./data/childes/eval_data/cat_eval_A_{prompt_name}_{type_name}.jsonl"
+                path = f"./data/childes/plain_eval_data/cat_eval_A_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         target = rec["Target"]
@@ -191,7 +192,7 @@ def prepare_evaluation_data(eval_type: str):
                                 "prompt": prompt,
                                 "input": input_text,
                                 "target": target,
-                                "category": categories[i],
+                                "category": " " + categories[i],
                             }, ensure_ascii=False) + "\n")
 
     if "cat_eval_A" in eval_type:
@@ -208,7 +209,7 @@ def prepare_evaluation_data(eval_type: str):
 
         for prompt_name, prompt in prompts.items():
             for type_name, template in input_templates.items():
-                path = f"./data/childes/eval_data/cat_eval_B_{prompt_name}_{type_name}.jsonl"
+                path = f"./data/childes/plain_eval_data/cat_eval_B_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         target = rec["Target"]
@@ -220,6 +221,7 @@ def prepare_evaluation_data(eval_type: str):
                                 "input": input_text,
                                 "target": target,
                                 "category": categories[i],
+                                "answer": " Yes" if i == 0 else " No"
                             }, ensure_ascii=False) + "\n")
     if "cat_eval_B" in eval_type:
         create_cat_eval_B()
@@ -233,7 +235,7 @@ def prepare_evaluation_data(eval_type: str):
         }
         for prompt_name, prompt in prompts.items():
             for type_name, template in input_templates.items():
-                path = f"./data/childes/eval_data/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
+                path = f"./data/childes/plain_eval_data/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         target = rec["Target"]
@@ -244,7 +246,7 @@ def prepare_evaluation_data(eval_type: str):
                                 "prompt": prompt,
                                 "input": input_text,
                                 "target": target,
-                                "c_word": cs[i]
+                                "c_word": " " + cs[i]
                             }, ensure_ascii=False) + "\n")
     if "cohypo_eval_A" in eval_type:
         create_cohypo_eval_A()
@@ -258,7 +260,7 @@ def prepare_evaluation_data(eval_type: str):
         }
         for prompt_name, prompt in prompts.items():
             for type_name, template in input_templates.items():
-                path = f"./data/childes/eval_data/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
+                path = f"./data/childes/plain_eval_data/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         target = rec["Target"]
@@ -268,6 +270,158 @@ def prepare_evaluation_data(eval_type: str):
                             f.write(json.dumps({
                                 "prompt": prompt,
                                 "input": input_text,
+                                "target": target,
+                                "c_word": cs[i],
+                                "answer": " Yes" if i < 2 else " No"
+                            }, ensure_ascii=False) + "\n")
+                    
+    if "cohypo_eval_B" in eval_type:
+        create_cohypo_eval_B()
+
+    if eval_type == "all":
+        create_cat_eval_A()
+        create_cat_eval_B()
+        create_cohypo_eval_A()
+        create_cohypo_eval_B()
+
+def prepare_chat_evaluation_data(eval_type: str):
+    records = []
+    try:
+        with open("./data/childes/flores_stimuli_with_categories.jsonl", "r", encoding="utf-8") as f:
+            for line in f:
+                records.append(json.loads(line))
+    except:
+        create_counterbalance_data()
+
+    def _a_or_an(noun: str) -> str:
+        mass_nones = ['makeup', 'toothpaste', 'lotion', 'drums', 'pliers', 'chalk']
+        if noun in mass_nones:
+            return ""
+        else:
+            vowels = "aeiou"
+            noun = noun.strip().lower()
+
+            if len(noun) == 0:
+                return "a"
+
+            return "an" if noun[0] in vowels else "a"
+        
+    def phrase(noun):
+        article = _a_or_an(noun)
+        return f"{article} {noun}".strip()
+    
+    os.makedirs("./data/childes/chat_eval_data", exist_ok=True)
+
+    def create_cat_eval_A():
+        prompts = {"prompt1": "Think of the category this object naturally belongs to. "}
+
+        input_templates = {
+                "input1": "{X} is {Y}",
+                "input2": "{X} is a type of {Y}",
+                "input3": "{X} belongs to {Y}"}
+
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in input_templates.items():
+                path = f"./data/childes/chat_eval_data/cat_eval_A_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
+                        for i in range(3):
+                            input_text = template.format(X=phrase(target), Y=_a_or_an(categories[i])).strip()
+                            f.write(json.dumps({
+                               "message": [
+                                   {"role": "system", "content": "You are a helpful assistant."},
+                                   {"role": "user", "content": prompt + input_text},
+                                   {"role": "assistant", "content": categories[i]}
+                                 ],
+                                "target": target,
+                                "category": categories[i],
+                            }, ensure_ascii=False) + "\n")
+
+    if "cat_eval_A" in eval_type:
+        create_cat_eval_A()
+
+    def create_cat_eval_B():
+        prompts = {"prompt1": "Answer the following question with Yes or No. "}
+
+        input_templates = {
+                "input1": "Is {X} {Y}? Answer:",
+                "input2": "Is {X} a type of {Y}?, Answer:",
+                "input3": "Does {X} belong to {Y}? Answer:"
+        }
+
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in input_templates.items():
+                path = f"./data/childes/chat_eval_data/cat_eval_B_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
+                        for i in range(3):
+                            input_text = template.format(X=phrase(target), Y=phrase(categories[i]))
+                            f.write(json.dumps({
+                                 "message": [
+                                      {"role": "system", "content": "You are a helpful assistant."},
+                                      {"role": "user", "content": prompt + input_text},
+                                      {"role": "assistant", "content": "Yes" if i == 0 else "No"}
+                                    ],
+                                "target": target,
+                                "category": categories[i],
+                            }, ensure_ascii=False) + "\n")
+    if "cat_eval_B" in eval_type:
+        create_cat_eval_B()
+
+    def create_cohypo_eval_A():
+        prompts = {"prompt1": "Think of an object that is semantically similar. "}
+        input_templates = {
+                "input1": "{X} is like {Y}",
+                "input2": "{X} is similar to {Y}",
+                "input3": "{X} equals {Y}",
+        }
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in input_templates.items():
+                path = f"./data/childes/chat_eval_data/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
+                        for i in range(4):
+                            input_text = template.format(X=phrase(target), Y=_a_or_an(cs[i]))
+                            f.write(json.dumps({
+                                "message": [
+                                    {"role": "system", "content": "You are a helpful assistant."},
+                                    {"role": "user", "content": prompt + input_text},
+                                    {"role": "assistant", "content": cs[i]}
+                                    ],
+                                "target": target,
+                                "c_word": cs[i]
+                            }, ensure_ascii=False) + "\n")
+    if "cohypo_eval_A" in eval_type:
+        create_cohypo_eval_A()
+
+    def create_cohypo_eval_B():
+        prompts = {"prompt1": "Answer the following question with Yes or No. "}
+        input_templates = {
+                "input1": "Is {X} like {Y}?, Answer:",
+                "input2": "Is {X} similar to {Y}?, Answer:",
+                "input3": "Does {X} equal {Y}?, Answer:",
+        }
+        for prompt_name, prompt in prompts.items():
+            for type_name, template in input_templates.items():
+                path = f"./data/childes/chat_eval_data/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        target = rec["Target"]
+                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
+                        for i in range(4):
+                            input_text = template.format(X=phrase(target), Y=phrase(cs[i]))
+                            f.write(json.dumps({
+                                "message": [
+                                    {"role": "system", "content": "You are a helpful assistant."},
+                                    {"role": "user", "content": prompt + input_text},
+                                    {"role": "assistant", "content": "Yes" if i < 2 else "No"}
+                                    ],
                                 "target": target,
                                 "c_word": cs[i],
                             }, ensure_ascii=False) + "\n")

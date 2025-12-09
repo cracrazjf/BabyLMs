@@ -3,8 +3,9 @@ from psychai.language.lm import TrainingManager
 import os
 import json
 from pathlib import Path
+import pandas as pd
 from torch.utils.data import DataLoader
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 from transformers import DataCollatorWithPadding
 from eval_fn import cat_eval_A, cat_eval_B, cohypo_eval_A, cohypo_eval_B
 from prepare_dataset import prepare_evaluation_data, create_counterbalance_data
@@ -21,7 +22,7 @@ def main():
             "num_layers": 12,
         },
         "data": {
-            "test_path": f"./data/childes/eval_data",
+            "test_path": f"./data/childes/plain_eval_data",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -34,15 +35,12 @@ def main():
         },
         "root_dir": "./",
         "exp_name": "gpt2_evaluation",
-        "exp_dir": "./evaluation/gpt2",
-        "task": "all",
+        "exp_dir": "./generation/gpt2",
+        "task": "cohypo_eval_A",
         "device": "cpu"
     }
     cfg = update_config(cfg, updates)
     os.makedirs(cfg.exp_dir, exist_ok=True)
-
-    # prepare_evaluation_data(eval_type=cfg.task)
-    # return 
 
     if Path(cfg.data.test_path).is_dir():
         files = [f for f in Path(cfg.data.test_path).iterdir() if f.is_file()]
@@ -108,6 +106,18 @@ def main():
             input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
 
             return {"input_ids": input_enc["input_ids"]}
+
+        # def _tokenize_function(batch):
+        #     cleaned_inputs = []
+
+        #     for prompt, inp, remove in zip(batch["prompt"], batch["input"], batch["c_word"]):
+        #         prefix = inp.split(remove)[0]
+        #         text = prompt + prefix
+        #         cleaned_inputs.append(text)
+
+        #     enc = tm.mm.tokenizer(cleaned_inputs, add_special_tokens=False, truncation=False)
+
+        #     return {"input_ids": enc["input_ids"]}
     
         tokenized_dataset = dataset.map(_tokenize_function, 
                                         batched=True, 
@@ -116,6 +126,12 @@ def main():
     
         tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
         
+        # df = tokenized_dataset.to_pandas()
+        # df["input_ids_tuple"] = df["input_ids"].apply(tuple)
+        # df = df.drop_duplicates(subset=["input_ids_tuple"])
+        # df = df.drop(columns=["input_ids_tuple"])
+        # tokenized_dataset = Dataset.from_pandas(df, preserve_index=False)
+
         collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
         
         loader = DataLoader(tokenized_dataset, 
@@ -128,6 +144,17 @@ def main():
         with open(cfg.exp_dir + f"/{Path(test_file).stem}_results.jsonl", "w", encoding="utf-8") as f:
             for rec in results:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        # generations = []
+        # for batch in loader:
+        #     decoded_text = tm.generate(batch["input_ids"], max_new_tokens=10, temperature=0.0, top_k=0)
+        #     generations.extend(decoded_text)
+
+        # with open(cfg.exp_dir + f"/{Path(test_file).stem}_generations.jsonl", "w", encoding="utf-8") as f:
+        #     for gen in generations:
+        #         rec = {
+        #             "generation": gen
+        #         }
+        #         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
     
 if __name__ == "__main__":

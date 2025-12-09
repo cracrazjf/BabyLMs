@@ -1,7 +1,7 @@
 import os
 from utils import configure_autodl_cache_dirs, configure_hf_endpoint
-configure_autodl_cache_dirs()
-configure_hf_endpoint()
+# configure_autodl_cache_dirs()
+# configure_hf_endpoint()
 import json
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -10,7 +10,7 @@ from psychai.language.llm import ModelManager, TrainingManager
 from psychai.config import EvaluationConfig, update_config
 from transformers import DataCollatorWithPadding
 from eval_fn import cat_eval_A, cat_eval_B, cohypo_eval_A, cohypo_eval_B
-from prepare_dataset import prepare_evaluation_data, create_counterbalance_data
+from prepare_dataset import prepare_evaluation_data, create_counterbalance_data, prepare_chat_evaluation_data
 
 def main():
     cfg = EvaluationConfig()
@@ -21,7 +21,7 @@ def main():
             "model_type": "llama",
         },
         "data": {
-            "test_path": f"/root/autodl-tmp/eval_data",
+            "test_path": f"/root/autodl-tmp/plain_eval_data",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -39,6 +39,8 @@ def main():
     }
     cfg = update_config(cfg, updates)
     os.makedirs(cfg.exp_dir, exist_ok=True)
+    # prepare_chat_evaluation_data(eval_type=cfg.task)
+    # return
 
     if Path(cfg.data.test_path).is_dir():
         files = [f for f in Path(cfg.data.test_path).iterdir() if f.is_file()]
@@ -121,7 +123,6 @@ def main():
         
         tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
 
-        
         collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
         
         loader = DataLoader(tokenized_dataset, 

@@ -60,7 +60,7 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     log_prob = F.log_softmax(logits, dim=-1)
 
     cat_ids_list = [
-        torch.tensor(mm.tokenizer(" " + d["category"], add_special_tokens=False)["input_ids"], device=device)
+        torch.tensor(mm.tokenizer(d["category"], add_special_tokens=False)["input_ids"], device=device)
         for d in data
     ]
     cat_lens = torch.tensor([len(x) for x in cat_ids_list], device=device)
@@ -152,12 +152,19 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
     predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
 
+    if data[0]["answer"].startswith(" "):
+        yes_str = " Yes"
+        no_str = " No"
+    else:
+        yes_str = "Yes"
+        no_str = "No"
+
     yes_ids = torch.tensor(
-        mm.tokenizer(" " + "Yes", add_special_tokens=False)["input_ids"],
+        mm.tokenizer(yes_str, add_special_tokens=False)["input_ids"],
         device=device, dtype=torch.long
     )
     no_ids = torch.tensor(
-        mm.tokenizer(" " + "No", add_special_tokens=False)["input_ids"],
+        mm.tokenizer(no_str, add_special_tokens=False)["input_ids"],
         device=device, dtype=torch.long
     )
     assert len(yes_ids) == len(no_ids)
@@ -177,9 +184,6 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
                                          
     yes_lp = lp_slice.gather(2, yes_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
     no_lp = lp_slice.gather(2, no_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
-
-    # true_is_yes = torch.tensor([a.strip().lower() == "yes" for a in data["answer"]],device=device)
-    # correct = torch.where(true_is_yes, yes_lp > no_lp, no_lp > yes_lp)
 
     saying_yes = yes_lp > no_lp
     cc_idx = torch.arange(0, B, 3, device=device)
@@ -220,7 +224,7 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     log_prob = F.log_softmax(logits, dim=-1)
 
     cword_ids_list = [
-        torch.tensor(mm.tokenizer(" " + d["c_word"], add_special_tokens=False)["input_ids"], device=device)
+        torch.tensor(mm.tokenizer(d["c_word"], add_special_tokens=False)["input_ids"], device=device)
         for d in data
     ]
 
@@ -329,12 +333,19 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
     predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
 
+    if data[0]["answer"].startswith(" "):
+        yes_str = " Yes"
+        no_str = " No"
+    else:
+        yes_str = "Yes"
+        no_str = "No"
+
     yes_ids = torch.tensor(
-        mm.tokenizer(" Yes", add_special_tokens=False)["input_ids"],
+        mm.tokenizer(yes_str, add_special_tokens=False)["input_ids"],
         device=device, dtype=torch.long
     )
     no_ids = torch.tensor(
-        mm.tokenizer(" No", add_special_tokens=False)["input_ids"],
+        mm.tokenizer(no_str, add_special_tokens=False)["input_ids"],
         device=device, dtype=torch.long
     )
     assert len(yes_ids) == len(no_ids)
@@ -355,9 +366,6 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     yes_lp = lp_slice.gather(2, yes_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
     no_lp = lp_slice.gather(2, no_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
 
-    # true_is_yes = torch.tensor([a.strip().lower() == "yes" for a in data["answer"]],device=device)
-
-    # correct = torch.where(true_is_yes, yes_lp > no_lp, no_lp > yes_lp)
     saying_yes = yes_lp > no_lp
     c1_idx = torch.arange(0, B, 4, device=device)
     c2_idx  = torch.arange(1, B, 4, device=device)
