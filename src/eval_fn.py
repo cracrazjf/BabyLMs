@@ -34,7 +34,7 @@ def pad_and_concat(tensors, pad_value=0.0):
 def find_start_pos(seq, subseq):
     T = seq.size(0)
     L = subseq.size(0)
-    for i in range(T - L + 1):
+    for i in range(T - L, -1, -1):
         if torch.equal(seq[i:i+L], subseq):
             return i
     return -1

@@ -16,12 +16,12 @@ def main():
     cfg = EvaluationConfig()
     updates = {
         "model": {
-            "name": "unsloth/Meta-Llama-3.1-8B-Instruct",
-            "path": f"unsloth/Meta-Llama-3.1-8B-Instruct",
-            "model_type": "llama-instruct",
+            "name": "unsloth/gemma-3-12b-pt",
+            "path": f"unsloth/gemma-3-12b-pt",
+            "model_type": "gemma3-12b",
         },
         "data": {
-            "test_path": f"/root/autodl-tmp/chat_eval_data",
+            "test_path": f"/root/autodl-tmp/plain_eval_data",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -32,8 +32,8 @@ def main():
             "layer_of_interest": 0,
         },
         "root_dir": "/root/autodl-tmp/",
-        "exp_name": "llama_8b_evaluation",
-        "exp_dir": f"/root/autodl-tmp/evaluation/llama_8b_instruct",
+        "exp_name": "gemma3_12b_evaluation",
+        "exp_dir": f"/root/autodl-tmp/evaluation/gemma3_12b_base",
         "task": "all",
         "device": "cuda"
     }
@@ -42,6 +42,9 @@ def main():
     # prepare_chat_evaluation_data(eval_type=cfg.task, 
     #                              category_file="/root/autodl-tmp/data/childes/flores_stimuli_with_categories.jsonl", 
     #                              output_dir=cfg.data.test_path)
+    # prepare_evaluation_data(eval_type=cfg.task,
+    #                         category_file="/root/autodl-tmp/data/counterbalance/counterbalance_stimuli.jsonl",
+    #                         output_dir=cfg.data.test_path)
     # return
 
     if Path(cfg.data.test_path).is_dir():
@@ -113,18 +116,26 @@ def main():
 
         if "instruct" in cfg.model.model_type:
             tm.mm.choose_chat_template()
-            def formatting_prompts_func(examples):
-                convos = examples["message"]
-                input_ids = [tm.mm.tokenizer.apply_chat_template(convo, 
-                                                                 tokenize = True, 
-                                                                 add_generation_prompt = False,) for convo in convos]
-                return { "input_ids" : input_ids, }
+            if "llama" in cfg.model.model_type:
+                def formatting_prompts_func(examples):
+                    convos = examples["message"]
+                    input_ids = [tm.mm.tokenizer.apply_chat_template(convo, 
+                                                                    tokenize = True, 
+                                                                    add_generation_prompt = False,) for convo in convos]
+                    return { "input_ids" : input_ids, }
+            elif "qwen" in cfg.model.model_type:
+                def formatting_prompts_func(examples):
+                    convos = examples["message"]
+                    input_ids = [tm.mm.tokenizer.apply_chat_template(convo, 
+                                                                    tokenize = True, 
+                                                                    add_generation_prompt = False,
+                                                                    enable_thinking=False) for convo in convos]
+                    return { "input_ids" : input_ids, }
 
             tokenized_dataset = dataset.map(formatting_prompts_func, 
                                             batched = True, 
                                             batch_size=cfg.data.data_process_batch_size, 
                                             num_proc=cfg.data.data_process_num_proc)
-
         else:
             def _tokenize_function(batch):
                 input_text = [prompt + input for prompt, input in zip(batch["prompt"], batch["input"])]
