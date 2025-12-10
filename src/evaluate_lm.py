@@ -30,13 +30,13 @@ def main():
         "logging": {
             "return_weights": False,
             "return_embeddings": True,
-            "layer_of_interest": "h_2",
-            "embed_type": "hidden",
+            "layer_of_interest": "wte",
+            "embed_type": "embeddings",
         },
         "root_dir": "./",
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./generation/gpt2",
-        "task": "cohypo_eval_A",
+        "task": "all",
         "device": "cpu"
     }
     cfg = update_config(cfg, updates)
