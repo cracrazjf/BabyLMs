@@ -1,7 +1,7 @@
 import os
 from utils import configure_autodl_cache_dirs, configure_hf_endpoint
-# configure_autodl_cache_dirs()
-# configure_hf_endpoint()
+configure_autodl_cache_dirs()
+configure_hf_endpoint()
 import json
 from pathlib import Path
 from torch.utils.data import DataLoader
@@ -16,12 +16,12 @@ def main():
     cfg = EvaluationConfig()
     updates = {
         "model": {
-            "name": "unsloth/Meta-Llama-3.1-8B",
-            "path": f"unsloth/Meta-Llama-3.1-8B",
-            "model_type": "llama",
+            "name": "unsloth/Meta-Llama-3.1-8B-Instruct",
+            "path": f"unsloth/Meta-Llama-3.1-8B-Instruct",
+            "model_type": "llama-instruct",
         },
         "data": {
-            "test_path": f"/root/autodl-tmp/plain_eval_data",
+            "test_path": f"/root/autodl-tmp/chat_eval_data",
             "batch_size": 8,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -29,17 +29,19 @@ def main():
         "logging": {
             "return_weights": False,
             "return_embeddings": True,
-            "layer_of_interest": 2,
+            "layer_of_interest": 0,
         },
         "root_dir": "/root/autodl-tmp/",
         "exp_name": "llama_8b_evaluation",
-        "exp_dir": f"/root/autodl-tmp/evaluation/llama_8b",
+        "exp_dir": f"/root/autodl-tmp/evaluation/llama_8b_instruct",
         "task": "all",
         "device": "cuda"
     }
     cfg = update_config(cfg, updates)
     os.makedirs(cfg.exp_dir, exist_ok=True)
-    # prepare_chat_evaluation_data(eval_type=cfg.task)
+    # prepare_chat_evaluation_data(eval_type=cfg.task, 
+    #                              category_file="/root/autodl-tmp/data/childes/flores_stimuli_with_categories.jsonl", 
+    #                              output_dir=cfg.data.test_path)
     # return
 
     if Path(cfg.data.test_path).is_dir():
@@ -109,27 +111,42 @@ def main():
             tm.mm.tokenizer.pad_token_id = tm.mm.tokenizer.eos_token_id
         tm.mm.tokenizer.padding_side = "right"
 
-        def _tokenize_function(batch):
-            input_text = [prompt + input for prompt, input in zip(batch["prompt"], batch["input"])]
-            input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
+        if "instruct" in cfg.model.model_type:
+            tm.mm.choose_chat_template()
+            def formatting_prompts_func(examples):
+                convos = examples["message"]
+                input_ids = [tm.mm.tokenizer.apply_chat_template(convo, 
+                                                                 tokenize = True, 
+                                                                 add_generation_prompt = False,) for convo in convos]
+                return { "input_ids" : input_ids, }
 
-            return {
-                "input_ids": input_enc["input_ids"],}
+            tokenized_dataset = dataset.map(formatting_prompts_func, 
+                                            batched = True, 
+                                            batch_size=cfg.data.data_process_batch_size, 
+                                            num_proc=cfg.data.data_process_num_proc)
+
+        else:
+            def _tokenize_function(batch):
+                input_text = [prompt + input for prompt, input in zip(batch["prompt"], batch["input"])]
+                input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
+
+                return {
+                    "input_ids": input_enc["input_ids"],}
     
-        tokenized_dataset = dataset.map(_tokenize_function, 
-                                        batched=True, 
-                                        batch_size=cfg.data.data_process_batch_size, 
-                                        num_proc=cfg.data.data_process_num_proc)
+            tokenized_dataset = dataset.map(_tokenize_function, 
+                                            batched=True, 
+                                            batch_size=cfg.data.data_process_batch_size, 
+                                            num_proc=cfg.data.data_process_num_proc)
         
         tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
 
         collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
-        
+            
         loader = DataLoader(tokenized_dataset, 
                             batch_size=cfg.data.batch_size, 
                             shuffle=False, 
                             collate_fn=collate_fn)
-        
+            
         results = tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
 
         with open(cfg.exp_dir + f"/{Path(test_file).stem}_results.jsonl", "w", encoding="utf-8") as f:

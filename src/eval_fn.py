@@ -120,7 +120,7 @@ def cat_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     results = []
     for i in range(0, input_ids.shape[0], 3):
         results.append({
-            "input": data[i]["input"],
+            "target": data[i]["target"],
             "cc": data[i]["category"],
             "wc1": data[i+1]["category"],
             "wc2": data[i+2]["category"],
@@ -152,12 +152,20 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
     predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
 
+    answer_ids_list = [
+        torch.tensor(mm.tokenizer(d["answer"], add_special_tokens=False)["input_ids"], device=device)
+        for d in data
+    ]
+
     if data[0]["answer"].startswith(" "):
         yes_str = " Yes"
         no_str = " No"
     else:
         yes_str = "Yes"
         no_str = "No"
+
+    answer_lens = torch.tensor([len(x) for x in answer_ids_list], device=device)
+    answer_logit_start = torch.tensor([find_start_pos(input_ids[i], answer_ids_list[i])-1 for i in range(input_ids.size(0))], device=device)
 
     yes_ids = torch.tensor(
         mm.tokenizer(yes_str, add_special_tokens=False)["input_ids"],
@@ -167,20 +175,20 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
         mm.tokenizer(no_str, add_special_tokens=False)["input_ids"],
         device=device, dtype=torch.long
     )
-    assert len(yes_ids) == len(no_ids)
+    max_answer_len = max(answer_lens).item()
+    assert len(yes_ids) == len(no_ids) == max_answer_len
     L = len(yes_ids)
 
     log_prob = F.log_softmax(logits, dim=-1)
 
-    input_lens = (input_ids != pad_id).sum(dim=1)
-    start_idx = input_lens - L - 1  
-
-    idx_range = torch.arange(L, device=device)
-    token_positions = start_idx[:, None] + idx_range
-
     B, T, V = log_prob.shape
-    lp_slice = log_prob.gather(1, token_positions[:, :, None].expand(B, L, V))
-    pred_slice = predictions.gather(1, token_positions)
+    ar = torch.arange(max_answer_len, device=device)
+
+    logit_positions = answer_logit_start[:, None] + ar[None, :]
+    logit_positions = logit_positions.clamp(min=0, max=T-1)
+
+    lp_slice = log_prob.gather(1, logit_positions[:, :, None].expand(B, max_answer_len, V))
+    pred_slice = predictions.gather(1, logit_positions)
                                          
     yes_lp = lp_slice.gather(2, yes_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
     no_lp = lp_slice.gather(2, no_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
@@ -199,9 +207,10 @@ def cat_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights):
     results = []
     for i in range(0, input_ids.shape[0], 3):
         results.append({
-            "cc_input": data[i]["input"],
-            "wc1_input": data[i+1]["input"],
-            "wc2_input": data[i+2]["input"],
+            "target": data[i]["target"],
+            "cc": data[i]["category"],
+            "wc1": data[i+1]["category"],
+            "wc2": data[i+2]["category"],
             "cc_yes_percent": saying_yes[i].item(),
             "wc1_yes_percent": saying_yes[i+1].item(),
             "wc2_yes_percent": saying_yes[i+2].item(),
@@ -294,7 +303,7 @@ def cohypo_eval_A(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     results = []
     for i in range(0, B, 4):
         results.append({
-            "input": data[i]["input"],
+            "target": data[i]["target"],
             "c1": data[i]["c_word"],
             "c2": data[i+1]["c_word"],
             "c3": data[i+2]["c_word"],
@@ -333,12 +342,20 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
     predictions = pad_and_concat([prediction.to(device) for prediction in predictions], pad_value=-100)
 
+    answer_ids_list = [
+        torch.tensor(mm.tokenizer(d["answer"], add_special_tokens=False)["input_ids"], device=device)
+        for d in data
+    ]
+
     if data[0]["answer"].startswith(" "):
         yes_str = " Yes"
         no_str = " No"
     else:
         yes_str = "Yes"
         no_str = "No"
+
+    answer_lens = torch.tensor([len(x) for x in answer_ids_list], device=device)
+    answer_logit_start = torch.tensor([find_start_pos(input_ids[i], answer_ids_list[i])-1 for i in range(input_ids.size(0))], device=device)
 
     yes_ids = torch.tensor(
         mm.tokenizer(yes_str, add_special_tokens=False)["input_ids"],
@@ -348,20 +365,20 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
         mm.tokenizer(no_str, add_special_tokens=False)["input_ids"],
         device=device, dtype=torch.long
     )
-    assert len(yes_ids) == len(no_ids)
+    max_answer_len = max(answer_lens).item()
+    assert len(yes_ids) == len(no_ids) == max_answer_len
     L = len(yes_ids)
 
     log_prob = F.log_softmax(logits, dim=-1)
 
-    input_lens = (input_ids != pad_id).sum(dim=1)
-    start_idx = input_lens - L - 1  
-
-    idx_range = torch.arange(L, device=device)
-    token_positions = start_idx[:, None] + idx_range
-
     B, T, V = log_prob.shape
-    lp_slice = log_prob.gather(1, token_positions[:, :, None].expand(B, L, V))
-    pred_slice = predictions.gather(1, token_positions)
+    ar = torch.arange(max_answer_len, device=device)
+
+    logit_positions = answer_logit_start[:, None] + ar[None, :]
+    logit_positions = logit_positions.clamp(min=0, max=T-1)
+
+    lp_slice = log_prob.gather(1, logit_positions[:, :, None].expand(B, max_answer_len, V))
+    pred_slice = predictions.gather(1, logit_positions)
                                          
     yes_lp = lp_slice.gather(2, yes_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
     no_lp = lp_slice.gather(2, no_ids[None, :, None].expand(B, L, 1)).squeeze(-1).mean(dim=1)
@@ -382,10 +399,11 @@ def cohypo_eval_B(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     results = []
     for i in range(0, input_ids.shape[0], 4):
         results.append({
-            "c1_input": data[i]["input"],
-            "c2_input": data[i+1]["input"],
-            "c3_input": data[i+2]["input"],
-            "c4_input": data[i+3]["input"],
+            "target": data[i]["target"],
+            "c1": data[i]["c_word"],
+            "c2": data[i+1]["c_word"],
+            "c3": data[i+2]["c_word"],
+            "c4": data[i+3]["c_word"],
             "c1_yes_percent": saying_yes[i].item(),
             "c2_yes_percent": saying_yes[i+1].item(),
             "c3_yes_percent": saying_yes[i+2].item(),
