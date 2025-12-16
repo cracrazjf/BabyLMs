@@ -16,12 +16,12 @@ def main():
     cfg = EvaluationConfig()
     updates = {
         "model": {
-            "name": "unsloth/gemma-3-12b-pt",
-            "path": f"unsloth/gemma-3-12b-pt",
-            "model_type": "gemma3-12b",
+            "name": "unsloth/Meta-Llama-3.1-8B",
+            "path": f"unsloth/Meta-Llama-3.1-8B",
+            "model_type": "llama3.1-8b",
         },
         "data": {
-            "test_path": f"/root/autodl-tmp/plain_eval_data",
+            "test_path": f"/root/autodl-tmp/data/ACL/plain_eval_data",
             "batch_size": 32,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -32,22 +32,22 @@ def main():
             "layer_of_interest": 0,
         },
         "root_dir": "/root/autodl-tmp/",
-        "exp_name": "gemma3_12b_evaluation",
-        "exp_dir": f"/root/autodl-tmp/evaluation/gemma3_12b_base",
+        "exp_name": "meta_llama_3.1_8b_base_evaluation",
+        "exp_dir": f"/root/autodl-tmp/evaluation/meta_llama_3.1_8b_base",
         "task": "all",
         "device": "cuda"
     }
     cfg = update_config(cfg, updates)
     os.makedirs(cfg.exp_dir, exist_ok=True)
-    prepare_chat_evaluation_data(eval_type=cfg.task, 
-                                 category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl", 
-                                 raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
-                                 output_dir=cfg.data.test_path)
-    prepare_evaluation_data(eval_type=cfg.task,
-                            category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl",
-                            raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
-                            output_dir=cfg.data.test_path)
-    return
+    # prepare_chat_evaluation_data(eval_type=cfg.task, 
+    #                              category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl", 
+    #                              raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
+    #                              output_dir=cfg.data.test_path)
+    # prepare_evaluation_data(eval_type=cfg.task,
+    #                         category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl",
+    #                         raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
+    #                         output_dir=cfg.data.test_path)
+    # return
 
     tasks = ["superordinate_A", "superordinate_B", "cohyponym_A", "cohyponym_B"]
     groups = {k: [] for k in tasks}
@@ -90,14 +90,14 @@ def main():
             tm.mm.choose_chat_template()
             if "llama" in cfg.model.model_type:
                 def formatting_prompts_func(examples):
-                    convos = examples["message"]
+                    convos = examples["input_text"]
                     input_ids = [tm.mm.tokenizer.apply_chat_template(convo, 
                                                                     tokenize = True, 
                                                                     add_generation_prompt = False,) for convo in convos]
                     return { "input_ids" : input_ids, }
             elif "qwen" in cfg.model.model_type:
                 def formatting_prompts_func(examples):
-                    convos = examples["message"]
+                    convos = examples["input_text"]
                     input_ids = [tm.mm.tokenizer.apply_chat_template(convo, 
                                                                     tokenize = True, 
                                                                     add_generation_prompt = False,
@@ -110,8 +110,8 @@ def main():
                                             num_proc=cfg.data.data_process_num_proc)
         else:
             def _tokenize_function(batch):
-                input_text = [prompt + input for prompt, input in zip(batch["prompt"], batch["input"])]
-                input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
+                print(batch["input_text"])
+                input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=False, truncation=False)
 
                 return {
                     "input_ids": input_enc["input_ids"],}
