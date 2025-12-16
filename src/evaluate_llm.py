@@ -9,8 +9,8 @@ from datasets import load_dataset
 from psychai.language.llm import ModelManager, TrainingManager
 from psychai.config import EvaluationConfig, update_config
 from transformers import DataCollatorWithPadding
-from eval_fn import cat_eval_A, cat_eval_B, cohypo_eval_A, cohypo_eval_B
-from prepare_dataset import prepare_evaluation_data, create_counterbalance_data, prepare_chat_evaluation_data
+from eval_fn import eval_fn
+from prepare_dataset import prepare_evaluation_data, create_raw_data, prepare_chat_evaluation_data
 
 def main():
     cfg = EvaluationConfig()
@@ -22,7 +22,7 @@ def main():
         },
         "data": {
             "test_path": f"/root/autodl-tmp/plain_eval_data",
-            "batch_size": 8,
+            "batch_size": 32,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
         },
@@ -39,42 +39,28 @@ def main():
     }
     cfg = update_config(cfg, updates)
     os.makedirs(cfg.exp_dir, exist_ok=True)
-    # prepare_chat_evaluation_data(eval_type=cfg.task, 
-    #                              category_file="/root/autodl-tmp/data/childes/flores_stimuli_with_categories.jsonl", 
-    #                              output_dir=cfg.data.test_path)
-    # prepare_evaluation_data(eval_type=cfg.task,
-    #                         category_file="/root/autodl-tmp/data/counterbalance/counterbalance_stimuli.jsonl",
-    #                         output_dir=cfg.data.test_path)
-    # return
+    prepare_chat_evaluation_data(eval_type=cfg.task, 
+                                 category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl", 
+                                 raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
+                                 output_dir=cfg.data.test_path)
+    prepare_evaluation_data(eval_type=cfg.task,
+                            category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl",
+                            raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
+                            output_dir=cfg.data.test_path)
+    return
 
-    if Path(cfg.data.test_path).is_dir():
-        files = [f for f in Path(cfg.data.test_path).iterdir() if f.is_file()]
-        cat_eval_A_files = []
-        cat_eval_B_files = []
-        cohypo_eval_A_files = []
-        cohypo_eval_B_files = []
-        for f in files:
-            if "cat_eval_A" in f.name:
-                cat_eval_A_files.append(str(f))
-            elif "cat_eval_B" in f.name:
-                cat_eval_B_files.append(str(f))
-            elif "cohypo_eval_A" in f.name:
-                cohypo_eval_A_files.append(str(f))
-            elif "cohypo_eval_B" in f.name:
-                cohypo_eval_B_files.append(str(f))
+    tasks = ["superordinate_A", "superordinate_B", "cohyponym_A", "cohyponym_B"]
+    groups = {k: [] for k in tasks}
 
+    for f in Path(cfg.data.test_path).iterdir():
+        if f.is_file():
+            for k in tasks:
+                if k in f.name:
+                    groups[k].append(str(f))
+                    break
 
-    if "cat_eval_A" in cfg.task:
-        test_files = cat_eval_A_files
-    elif "cat_eval_B" in cfg.task:
-        test_files = cat_eval_B_files
-    elif "cohypo_eval_A" in cfg.task:
-        test_files = cohypo_eval_A_files
-    elif "cohypo_eval_B" in cfg.task:
-        test_files = cohypo_eval_B_files
-    else:
-        test_files = cat_eval_A_files + cat_eval_B_files + cohypo_eval_A_files + cohypo_eval_B_files
-
+    test_files = next((groups[k] for k in tasks if k in cfg.task),
+                    sum(groups.values(), []))
 
     tm = TrainingManager(cfg)
     tm.mm.load_model(
@@ -92,21 +78,7 @@ def main():
     for test_file in test_files:
         print(f"Evaluating on file: {test_file}")
         cfg.data.test_path = test_file
-        dataset = None
-        eval_fn = None
-        if Path(f"{cfg.data.test_path}").exists() is False:
-            prepare_evaluation_data(eval_type=cfg.task)
-            
         dataset = load_dataset("json", data_files=f"{test_file}", split="train")
-
-        if "cat_eval_A" in Path(test_file).name:
-            eval_fn = cat_eval_A
-        elif "cat_eval_B" in Path(test_file).name:
-            eval_fn = cat_eval_B
-        elif "cohypo_eval_A" in Path(test_file).name:
-            eval_fn = cohypo_eval_A
-        elif "cohypo_eval_B" in Path(test_file).name:
-            eval_fn = cohypo_eval_B
 
         old_cols = dataset.column_names
         pad_token_id = tm.mm.tokenizer.pad_token_id

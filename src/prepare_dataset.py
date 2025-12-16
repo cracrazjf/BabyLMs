@@ -2,6 +2,7 @@ import re
 import os
 import random
 import json
+import copy
 import pandas as pd
 from pathlib import Path
 from collections import Counter
@@ -9,7 +10,7 @@ from transformers import AutoTokenizer
 from psychai.language import load_any_as_chat
 from psychai.language.tokenizer import make_normalizer, make_pretokenizer, train_tokenizer, wrap_tokenizer, print_tokenizer
 
-def prepare_training_data():
+def prepare_childes_data():
     text_docs_path = Path("./data/childes/text_docs")
     text_docs_path.mkdir(parents=True, exist_ok=True)
     text_documents = [str(f) for f in text_docs_path.rglob("*.txt")]
@@ -111,332 +112,556 @@ def prepare_training_data():
     token_df = token_df.sort_values("word")
     token_df.to_csv("./tokenizer/childes_tokenizer/token_ids.csv", index=False)
 
-def create_counterbalance_data(path="./data/childes/flores_stimuli.xlsx"):
-    df = pd.read_excel(path)
-    object_category_dict = {}
-    for idx, row in df.iterrows():
-        target = row["Target"]
-        category = row["Category"]
-        object_category_dict[target] = category
+def create_raw_data(path="./data/ACL/LLM_Categories_stim.xlsx"):
+    df_dict = pd.read_excel(path, sheet_name=None)
+    category_dict = dict(zip(df_dict["probes"]["instance"], df_dict["probes"]["category"]))
 
-    df["category1"] = df["C1"].map(object_category_dict)
-    df["category2"] = df["C2"].map(object_category_dict)
-    df["category3"] = df["C3"].map(object_category_dict)
-    df["category4"] = df["C4"].map(object_category_dict)
+    raw_df = copy.deepcopy(df_dict["cohyponyms"])
+    cohypo_cols = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
+    for i, c in enumerate(cohypo_cols, start=1):
+        raw_df[f"category{i}"] = raw_df[c].map(category_dict)
 
-    jsonl_path = "./data/childes/flores_stimuli_with_categories.jsonl"
-    with open(jsonl_path, "w", encoding="utf-8") as f:
-        for idx, row in df.iterrows():
-            record = {
-                "Target": row["Target"],
-                "Category": row["Category"],
-                "C1": row["C1"],
-                "C2": row["C2"],
-                "C3": row["C3"],
-                "C4": row["C4"],
-                "Category1": row["category1"],
-                "Category2": row["category2"],
-                "Category3": row["category3"],
-                "Category4": row["category4"],
-            }
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-    print("Saved:", jsonl_path)
+    raw_df.to_json("./data/ACL/stimuli_with_categories.jsonl", orient="records", lines=True)
 
 def prepare_evaluation_data(eval_type: str, 
-                            category_file: str = "./data/childes/flores_stimuli_with_categories.jsonl",
-                            output_dir: str = "./data/childes/plain_eval_data"):
+                            category_file: str = "./data/ACL/stimuli_with_categories.jsonl",
+                            raw_file: str = "./data/ACL/LLM_Categories_stim.xlsx",
+                            output_dir: str = "./data/ACL/plain_eval_data"):
     records = []
     try:
         with open(category_file, "r", encoding="utf-8") as f:
             for line in f:
                 records.append(json.loads(line))
     except:
-        create_counterbalance_data()
+        create_raw_data()
 
-    def _a_or_an(noun: str) -> str:
-        mass_nones = ['makeup', 'toothpaste', 'lotion', 'drums', 'pliers', 'chalk']
-        if noun in mass_nones:
-            return ""
-        else:
-            vowels = "aeiou"
-            noun = noun.strip().lower()
-
-            if len(noun) == 0:
-                return "a"
-
-            return "an" if noun[0] in vowels else "a"
-        
-    def phrase(noun):
-        article = _a_or_an(noun)
-        return f"{article} {noun}".strip()
+    df_dict = pd.read_excel(raw_file, sheet_name=None)
+    probe_determiner_dict = dict(zip(df_dict["probes"]["instance"], df_dict["probes"]["probe_determiner"].fillna("")))
+    category_determiner_dict = dict(zip(df_dict["categories"]["category"], df_dict["categories"]["category_determiner"].fillna("")))
 
     os.makedirs(output_dir, exist_ok=True)
 
-    def create_cat_eval_A():
-        prompts = {"prompt1": "Think of the category this object naturally belongs to. "}
+    def create_superordinate_A():
+        metaprompts = {"metaprompt1": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
+                       "metaprompt2": "Please complete the following sentence naturally. ",
+                       "metaprompt3": ""}
 
-        input_templates = {
-                "input1": "{X} is {Y}.",
-                "input2": "{X} is a type of {Y}.",
-                "input3": "{X} belongs to {Y}."}
-
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cat_eval_A_{prompt_name}_{type_name}.jsonl"
-                with open(path, "w", encoding="utf-8") as f:
-                    for rec in records:
-                        target = rec["Target"]
-                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
-                        for i in range(3):
-                            input_text = template.format(X=phrase(target), Y=phrase(categories[i]))
-                            f.write(json.dumps({
-                                "prompt": prompt,
-                                "input": input_text,
-                                "target": target,
-                                "category": " " + categories[i],
-                            }, ensure_ascii=False) + "\n")
-
-    if "cat_eval_A" in eval_type:
-        create_cat_eval_A()
-    
-    def create_cat_eval_B():
-        prompts = {"prompt1": "Answer the following question with Yes or No. "}
-
-        input_templates = {
-                "input1": "Is {X} {Y}? Answer: {Z}",
-                "input2": "Is {X} a type of {Y}? Answer: {Z}",
-                "input3": "Does {X} belong to {Y}? Answer: {Z}"
+        prompt_templates = {
+                "prompt1": "{W} {X} is {Y} {Z}.",
+                "prompt2": "{W} {X} is a kind of {Z}.",
+                "prompt3": "{W} {X} is a type of {Z}.",
+                "prompt4": "{W} {X} belongs to the category {Z}.",
+                "prompt5": "{W} {X} is classified as {Y} {Z}.",
+                "negated_prompt1": "{W} {X} is not {Y} {Z}.",
+                "negated_prompt2": "{W} {X} is not a kind of {Z}.",
+                "negated_prompt3": "{W} {X} is not a type of {Z}.",
+                "negated_prompt4": "{W} {X} does not belong to the category {Z}.",
+                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}.",
+                "control_prompt1": "{X} _ {Z}.",
+                "control_prompt2": "{X}: {Z}.",
+                "control_prompt3": "{X} -> {Z}.",
+                "control_prompt4": "{X} — {Z}.",
+                "control_prompt5": "{X} and {Z}."
         }
-
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cat_eval_B_{prompt_name}_{type_name}.jsonl"
+        
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/superordinate_A_{metaprompt_type}_{prompt_type}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
-                        target = rec["Target"]
-                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
-                        for i in range(3):
-                            input_text = template.format(X=phrase(target), Y=phrase(categories[i]), Z="Yes" if i == 0 else "No")
-                            f.write(json.dumps({
-                                "prompt": prompt,
-                                "input": input_text,
-                                "target": target,
-                                "category": categories[i],
-                                "answer": " Yes" if i == 0 else " No"
-                            }, ensure_ascii=False) + "\n")
-    if "cat_eval_B" in eval_type:
-        create_cat_eval_B()
+                        conditions = ["category1", "category3", "category4"]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            category_determiner = category_determiner_dict[rec[conditions[i]]]
+                            category_text = rec[conditions[i]]
 
-    def create_cohypo_eval_A():
-        prompts = {"prompt1": "Think of an object that is semantically similar. "}
-        input_templates = {
-                "input1": "{X} is like {Y}.",
-                "input2": "{X} is similar to {Y}.",
-                "input3": "{X} equals {Y}.",
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                            input_text = " ".join(input_text.split())
+
+                            clean_prompt = prompt_template.split("{Z}", 1)[0].format(W=probe_determiner,X=probe, Y="CATEGORY_DETERMINER").strip()
+
+                            cat_space_search = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(category_text)}(?![A-Za-z0-9])"
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            
+
+                            target = " " + category_text if re.search(cat_space_search, input_text) else category_text
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
+                            f.write(json.dumps({
+                                "relationship": "superordinate",
+                                "task": "cloze",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": metaprompt + input_text,
+                                "probe": probe,
+                                "comparison": category_text,
+                                "target": target,
+                            }, ensure_ascii=False) + "\n")
+
+    if "superordinate_A" in eval_type:
+        create_superordinate_A()
+        
+    def create_superordinate_B():
+        metaprompts = {"metaprompt1": """Please answer the following question about the whether the provided word belongs to the stated category. Respond by saying only "True" or "False". """,
+                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
+                       "metaprompt3": ""}
+
+        prompt_templates = {
+                "prompt1": "{W} {X} is {Y} {Z}. {A}",
+                "prompt2": "{W} {X} is a kind of {Z}. {A}",
+                "prompt3": "{W} {X} is a type of {Z}. {A}",
+                "prompt4": "{W} {X} belongs to the category {Z}. {A}",
+                "prompt5": "{W} {X} is classified as {Y} {Z}. {A}",
+                "negated_prompt1": "{W} {X} is not {Y} {Z}. {A}",
+                "negated_prompt2": "{W} {X} is not a kind of {Z}. {A}",
+                "negated_prompt3": "{W} {X} is not a type of {Z}. {A}",
+                "negated_prompt4": "{W} {X} does not belong to the category {Z}. {A}",
+                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}. {A}",
+                "control_prompt1": "{X} _ {Z}. {A}",
+                "control_prompt2": "{X}: {Z}. {A}",
+                "control_prompt3": "{X} -> {Z}. {A}",
+                "control_prompt4": "{X} — {Z}. {A}",
+                "control_prompt5": "{X} and {Z}. {A}"
         }
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/superordinate_B_{metaprompt_type}_{prompt_type}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
-                        target = rec["Target"]
-                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
-                        for i in range(4):
-                            input_text = template.format(X=phrase(target), Y=phrase(cs[i]))
-                            f.write(json.dumps({
-                                "prompt": prompt,
-                                "input": input_text,
-                                "target": target,
-                                "c_word": " " + cs[i]
-                            }, ensure_ascii=False) + "\n")
-    if "cohypo_eval_A" in eval_type:
-        create_cohypo_eval_A()
+                        conditions = ["category1", "category3", "category4"]
+                        for i in range(2):
+                            for j in range(len(conditions)):
+                                probe = rec["probe"]
+                                probe_determiner = probe_determiner_dict[probe]
+                                category_determiner = category_determiner_dict[rec[conditions[j]]]
+                                category_text = rec[conditions[j]]
 
-    def create_cohypo_eval_B():
-        prompts = {"prompt1": "Answer the following question with Yes or No. "}
-        input_templates = {
-                "input1": "Is {X} like {Y}? Answer: {Z}",
-                "input2": "Is {X} similar to {Y}? Answer: {Z}",
-                "input3": "Does {X} equal {Y}? Answer: {Z}",
+                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text, A="True" if i == 0 else "False").strip()
+                                input_text = " ".join(input_text.split())
+                                clean_prompt = prompt_template.split("{A}", 1)[0].format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                                clean_prompt = " ".join(clean_prompt.split())
+                                
+                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
+                                target = " True" if i == 0 else " False"
+                                f.write(json.dumps({
+                                    "relationship": "superordinate",
+                                    "task": "verification",
+                                    "condition": conditions[j],
+                                    "meta_prompt_key": metaprompt_type,
+                                    "prompt_key": prompt_type,
+                                    "combined_prompt": metaprompt + clean_prompt,
+                                    "input_text": metaprompt + input_text,
+                                    "probe": probe,
+                                    "comparison": category_text,
+                                    "target": target
+                                }, ensure_ascii=False) + "\n")
+
+    if "superordinate_B" in eval_type:
+        create_superordinate_B()
+
+    def create_cohyponym_A():
+        metaprompts = {"metaprompt1": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
+                       "metaprompt2": "Please complete the following sentence naturally. ",
+                       "metaprompt3": ""}
+
+        prompt_templates = {
+                "prompt1": "{W} {X} is like {Y} {Z}.",
+                "prompt2": "{W} {X} is similar to {Y} {Z}.",
+                "prompt3": "Two words that belong to the same category are {X} and {Z}.",
+                "prompt4": "Another word that belongs to the same category as {X} is {Z}.",
+                "prompt5": "{X} is the same type of thing as {Z}.",
+                "negated_prompt1": "{W} {X} is not like {Y} {Z}.",
+                "negated_prompt2": "{W} {X} is not similar to {Y} {Z}.",
+                "negated_prompt3": "Two words that do not belong to the same category are {X} and {Z}.",
+                "negated_prompt4": "Another word that does not belong to the same category as {X} is {Z}.",
+                "negated_prompt5": "{X} is not the same type of thing as {Z}.",
+                "control_prompt1": "{X} _ {Z}.",
+                "control_prompt2": "{X}: {Z}.",
+                "control_prompt3": "{X} -> {Z}.",
+                "control_prompt4": "{X} — {Z}.",
+                "control_prompt5": "{X} and {Z}."
         }
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/cohyponym_A_{metaprompt_type}_{prompt_type}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
-                        target = rec["Target"]
-                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
-                        for i in range(4):
-                            input_text = template.format(X=phrase(target), Y=phrase(cs[i]), Z="Yes" if i < 2 else "No")
+                        conditions = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            cohyp_determiner = probe_determiner_dict[rec[conditions[i]]]
+                            cohypo_text = rec[conditions[i]]
+
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.split("{Z}", 1)[0].format(W=probe_determiner, X=probe, Y="COHYP_DETERMINER").strip()
+
+                            cohypo_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(cohypo_text)}(?![A-Za-z0-9])"
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            
+                            target = " " + cohypo_text if re.search(cohypo_search_pattern, input_text) else cohypo_text
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
                             f.write(json.dumps({
-                                "prompt": prompt,
-                                "input": input_text,
+                                "relationship": "cohyponym",
+                                "task": "cloze",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": metaprompt + input_text,
+                                "probe": probe,
+                                "comparison": cohypo_text,
                                 "target": target,
-                                "c_word": cs[i],
-                                "answer": " Yes" if i < 2 else " No"
                             }, ensure_ascii=False) + "\n")
-                    
-    if "cohypo_eval_B" in eval_type:
-        create_cohypo_eval_B()
+
+    if "cohyponym_A" in eval_type:
+        create_cohyponym_A()
+
+    def create_cohyponym_B():
+        metaprompts = {"metaprompt1": """Please answer the following question about whether the two words belong to the same category. Respond by saying only "True" or "False". """,
+                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
+                       "metaprompt3": ""}
+
+        prompt_templates = {
+                "prompt1": "{W} {X} is like {Y} {Z}. Answer: {A}",
+                "prompt2": "{W} {X} is similar to {Y} {Z}. Answer: {A}",
+                "prompt3": "Two words that belong to the same category are {X} and {Z}. Answer: {A}",
+                "prompt4": "Another word that belongs to the same category as {X} is {Z}. Answer: {A}",
+                "prompt5": "{X} is the same type of thing as {Z}. Answer: {A}",
+                "negated_prompt1": "{W} {X} is not like {Y} {Z}. Answer: {A} {A}",
+                "negated_prompt2": "{W} {X} is not similar to {Y} {Z}. Answer: {A}",
+                "negated_prompt3": "Two words that do not belong to the same category are {X} and {Z}. Answer: {A}",
+                "negated_prompt4": "Another word that does not belong to the same category as {X} is {Z}. Answer: {A}",
+                "negated_prompt5": "{X} is not the same type of thing as {Z}. Answer: {A}",
+                "control_prompt1": "{X} _ {Z}. Answer: {A}",
+                "control_prompt2": "{X}: {Z}. Answer: {A}",
+                "control_prompt3": "{X} -> {Z}. Answer: {A}",
+                "control_prompt4": "{X} — {Z}. Answer: {A}",
+                "control_prompt5": "{X} and {Z}. Answer: {A}"
+        }
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/cohyponym_B_{metaprompt_type}_{prompt_type}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        conditions = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
+                        for i in range(2):
+                            for j in range(len(conditions)):
+                                probe = rec["probe"]
+                                probe_determiner = probe_determiner_dict[probe]
+                                cohyp_determiner = probe_determiner_dict[rec[conditions[j]]]
+                                cohypo_text = rec[conditions[j]]
+
+                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text, A="True" if i == 0 else "False").strip()
+                                input_text = " ".join(input_text.split())
+                                clean_prompt = prompt_template.split("{A}", 1)[0].format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                                clean_prompt = " ".join(clean_prompt.split())
+
+                                target = " True" if i == 0 else " False"
+                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
+                                f.write(json.dumps({
+                                    "relationship": "cohyponym",
+                                    "task": "verification",
+                                    "condition": conditions[j],
+                                    "meta_prompt_key": metaprompt_type,
+                                    "prompt_key": prompt_type,
+                                    "combined_prompt": metaprompt + clean_prompt,
+                                    "input_text": metaprompt + input_text,
+                                    "probe": probe,
+                                    "comparison": cohypo_text,
+                                    "target": target,
+                                }, ensure_ascii=False) + "\n")
+                
+    if "cohyponym_B" in eval_type:
+        create_cohyponym_B()
 
     if eval_type == "all":
-        create_cat_eval_A()
-        create_cat_eval_B()
-        create_cohypo_eval_A()
-        create_cohypo_eval_B()
+        create_superordinate_A()
+        create_superordinate_B()
+        create_cohyponym_A()
+        create_cohyponym_B()
 
-def prepare_chat_evaluation_data(eval_type: str,
-                                 category_file: str = "./data/childes/flores_stimuli_with_categories.jsonl",
-                                 output_dir: str = "./data/childes/chat_eval_data"):
+def prepare_chat_evaluation_data(eval_type: str, 
+                                 category_file: str = "./data/ACL/stimuli_with_categories.jsonl",
+                                 raw_file: str = "./data/ACL/LLM_Categories_stim.xlsx",
+                                 output_dir: str = "./data/ACL/chat_eval_data"):
     records = []
     try:
         with open(category_file, "r", encoding="utf-8") as f:
             for line in f:
                 records.append(json.loads(line))
     except:
-        create_counterbalance_data()
+        create_raw_data()
 
-    def _a_or_an(noun: str) -> str:
-        mass_nones = ['makeup', 'toothpaste', 'lotion', 'drums', 'pliers', 'chalk']
-        if noun in mass_nones:
-            return ""
-        else:
-            vowels = "aeiou"
-            noun = noun.strip().lower()
+    df_dict = pd.read_excel(raw_file, sheet_name=None)
+    probe_determiner_dict = dict(zip(df_dict["probes"]["instance"], df_dict["probes"]["probe_determiner"].fillna("")))
+    category_determiner_dict = dict(zip(df_dict["categories"]["category"], df_dict["categories"]["category_determiner"].fillna("")))
 
-            if len(noun) == 0:
-                return "a"
-
-            return "an" if noun[0] in vowels else "a"
-        
-    def phrase(noun):
-        article = _a_or_an(noun)
-        return f"{article} {noun}".strip()
-    
     os.makedirs(output_dir, exist_ok=True)
 
-    def create_cat_eval_A():
-        prompts = {"prompt1": "Think of the category this object naturally belongs to. "}
+    def create_superordinate_A():
+        metaprompts = {"metaprompt1": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
+                       "metaprompt2": "Please complete the following sentence naturally. ",
+                       "metaprompt3": ""}
 
-        input_templates = {
-                "input1": "{X} is",
-                "input2": "{X} is a type of",
-                "input3": "{X} belongs to"}
-
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cat_eval_A_{prompt_name}_{type_name}.jsonl"
-                with open(path, "w", encoding="utf-8") as f:
-                    for rec in records:
-                        target = rec["Target"]
-                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
-                        for i in range(3):
-                            input_text = template.format(X=phrase(target))
-                            f.write(json.dumps({
-                               "message": [
-                                   {"role": "system", "content": "You are a helpful assistant."},
-                                   {"role": "user", "content": prompt + input_text},
-                                   {"role": "assistant", "content": phrase(categories[i])}
-                                 ],
-                                "target": target,
-                                "category": " " + categories[i],
-                            }, ensure_ascii=False) + "\n")
-
-    if "cat_eval_A" in eval_type:
-        create_cat_eval_A()
-
-    def create_cat_eval_B():
-        prompts = {"prompt1": "Answer the following question with Yes or No. "}
-
-        input_templates = {
-                "input1": "Is {X} {Y}?",
-                "input2": "Is {X} a type of {Y}?",
-                "input3": "Does {X} belong to {Y}?"
+        prompt_templates = {
+                "prompt1": "{W} {X} is {Y}",
+                "prompt2": "{W} {X} is a kind of",
+                "prompt3": "{W} {X} is a type of",
+                "prompt4": "{W} {X} belongs to the category",
+                "prompt5": "{W} {X} is classified as {Y}",
+                "negated_prompt1": "{W} {X} is not {Y}",
+                "negated_prompt2": "{W} {X} is not a kind of",
+                "negated_prompt3": "{W} {X} is not a type of",
+                "negated_prompt4": "{W} {X} does not belong to the category",
+                "negated_prompt5": "{W} {X} is not classified as {Y}",
+                "control_prompt1": "{X} _ ",
+                "control_prompt2": "{X}: ",
+                "control_prompt3": "{X} -> ",
+                "control_prompt4": "{X} — ",
+                "control_prompt5": "{X} and "
         }
-
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cat_eval_B_{prompt_name}_{type_name}.jsonl"
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/superordinate_A_{metaprompt_type}_{prompt_type}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
-                        target = rec["Target"]
-                        categories = [rec["Category"], rec["Category3"], rec["Category4"]]
-                        for i in range(3):
-                            input_text = template.format(X=phrase(target), Y=phrase(categories[i]))
-                            f.write(json.dumps({
-                                 "message": [
-                                      {"role": "system", "content": "You are a helpful assistant."},
-                                      {"role": "user", "content": prompt + input_text},
-                                      {"role": "assistant", "content": "Yes" if i == 0 else "No"}
-                                    ],
-                                "answer": "Yes" if i == 0 else "No",
-                                "target": target,
-                                "category": categories[i],
-                            }, ensure_ascii=False) + "\n")
-    if "cat_eval_B" in eval_type:
-        create_cat_eval_B()
+                        conditions = ["category1", "category3", "category4"]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            category_determiner = category_determiner_dict[rec[conditions[i]]]
+                            category_text = rec[conditions[i]]
 
-    def create_cohypo_eval_A():
-        prompts = {"prompt1": "Think of an object that is semantically similar. "}
-        input_templates = {
-                "input1": "{X} is like",
-                "input2": "{X} is similar to",
-                "input3": "{X} equals",
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner).strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.split("{Z}", 1)[0].format(W=probe_determiner,X=probe, Y="CATEGORY_DETERMINER").strip()
+
+                            target = category_text
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
+                            f.write(json.dumps({
+                                "relationship": "superordinate",
+                                "task": "cloze",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": [
+                                        {"role": "user", "content": metaprompt + input_text},
+                                        {"role": "assistant", "content": f"{target}."}
+                                        ],
+                                "probe": probe,
+                                "comparison": category_text,
+                                "target": target,
+                            }, ensure_ascii=False) + "\n")
+
+    if "superordinate_A" in eval_type:
+        create_superordinate_A()
+
+    def create_superordinate_B():
+        metaprompts = {"metaprompt1": """Please answer the following question about the whether the provided word belongs to the stated category. Respond by saying only "True" or "False". """,
+                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
+                       "metaprompt3": ""}
+
+        prompt_templates = {
+                "prompt1": "{W} {X} is {Y} {Z}.",
+                "prompt2": "{W} {X} is a kind of {Z}.",
+                "prompt3": "{W} {X} is a type of {Z}.",
+                "prompt4": "{W} {X} belongs to the category {Z}.",
+                "prompt5": "{W} {X} is classified as {Y} {Z}.",
+                "negated_prompt1": "{W} {X} is not {Y} {Z}.",
+                "negated_prompt2": "{W} {X} is not a kind of {Z}.",
+                "negated_prompt3": "{W} {X} is not a type of {Z}.",
+                "negated_prompt4": "{W} {X} does not belong to the category {Z}.",
+                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}.",
+                "control_prompt1": "{X}_{Z}.",
+                "control_prompt2": "{X}: {Z}.",
+                "control_prompt3": "{X} -> {Z}.",
+                "control_prompt4": "{X} — {Z}.",
+                "control_prompt5": "{X} and {Z}."
         }
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cohypo_eval_A_{prompt_name}_{type_name}.jsonl"
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/superordinate_B_{metaprompt_type}_{prompt_type}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
-                        target = rec["Target"]
-                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
-                        for i in range(4):
-                            input_text = template.format(X=phrase(target))
-                            f.write(json.dumps({
-                                "message": [
-                                    {"role": "system", "content": "You are a helpful assistant."},
-                                    {"role": "user", "content": prompt + input_text},
-                                    {"role": "assistant", "content": phrase(cs[i])}
-                                    ],
-                                "target": target,
-                                "c_word": cs[i] if _a_or_an(cs[i]) == "" else " " + cs[i]
-                            }, ensure_ascii=False) + "\n")
-    if "cohypo_eval_A" in eval_type:
-        create_cohypo_eval_A()
+                        conditions = ["category1", "category3", "category4"]
+                        for i in range(2):
+                            for j in range(len(conditions)):
+                                probe = rec["probe"]
+                                probe_determiner = probe_determiner_dict[probe]
+                                category_determiner = category_determiner_dict[rec[conditions[j]]]
+                                category_text = rec[conditions[j]]
 
-    def create_cohypo_eval_B():
-        prompts = {"prompt1": "Answer the following question with Yes or No. "}
-        input_templates = {
-                "input1": "Is {X} like {Y}?",
-                "input2": "Is {X} similar to {Y}?",
-                "input3": "Does {X} equal {Y}?",
+                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                                input_text = " ".join(input_text.split())
+                                clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                                clean_prompt = " ".join(clean_prompt.split())
+
+                                target = "True" if i == 0 else "False"
+                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
+                                f.write(json.dumps({
+                                    "relationship": "superordinate",
+                                    "task": "verification",
+                                    "condition": conditions[j],
+                                    "meta_prompt_key": metaprompt_type,
+                                    "prompt_key": prompt_type,
+                                    "combined_prompt": metaprompt + clean_prompt,
+                                    "input_text": [
+                                        {"role": "user", "content": metaprompt + input_text},
+                                        {"role": "assistant", "content": target}],
+                                    "probe": probe,
+                                    "comparison": category_text,
+                                    "target": target
+                                }, ensure_ascii=False) + "\n")
+    if "superordinate_B" in eval_type:
+        create_superordinate_B()
+
+    def create_cohyponym_A():
+        metaprompts = {"metaprompt1": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
+                       "metaprompt2": "Please complete the following sentence naturally. ",
+                       "metaprompt3": ""}
+
+        prompt_templates = {
+                "prompt1": "{W} {X} is like {Y}",
+                "prompt2": "{W} {X} is similar to {Y}",
+                "prompt3": "Two words that belong to the same category are {X} and",
+                "prompt4": "Another word that belongs to the same category as {X} is",
+                "prompt5": "{X} is the same type of thing as {Z}.",
+                "negated_prompt1": "{W} {X} is not like {Y} {Z}.",
+                "negated_prompt2": "{W} {X} is not similar to {Y} {Z}.",
+                "negated_prompt3": "Two words that do not belong to the same category are {X} and",
+                "negated_prompt4": "Another word that does not belong to the same category as {X} is",
+                "negated_prompt5": "{X} is not the same type of thing as",
+                "control_prompt1": "{X}_",
+                "control_prompt2": "{X}: ",
+                "control_prompt3": "{X} -> ",
+                "control_prompt4": "{X} — ",
+                "control_prompt5": "{X} and "
         }
-        for prompt_name, prompt in prompts.items():
-            for type_name, template in input_templates.items():
-                path = f"{output_dir}/cohypo_eval_B_{prompt_name}_{type_name}.jsonl"
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/cohyponym_A_{metaprompt_type}_{prompt_type}.jsonl"
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
-                        target = rec["Target"]
-                        cs = [rec["C1"], rec["C2"], rec["C3"], rec["C4"]]
-                        for i in range(4):
-                            input_text = template.format(X=phrase(target), Y=phrase(cs[i]))
+                        conditions = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            cohyp_determiner = probe_determiner_dict[rec[conditions[i]]]
+                            cohypo_text = rec[conditions[i]]
+
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner).strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y="COHYP_DETERMINER").strip()
+
+                            target =cohypo_text
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
                             f.write(json.dumps({
-                                "message": [
-                                    {"role": "system", "content": "You are a helpful assistant."},
-                                    {"role": "user", "content": prompt + input_text},
-                                    {"role": "assistant", "content": "Yes" if i < 2 else "No"}
-                                    ],
-                                "answer": "Yes" if i < 2 else "No",
+                                "relationship": "cohyponym",
+                                "task": "cloze",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": [
+                                        {"role": "user", "content": metaprompt + input_text},
+                                        {"role": "assistant", "content": f"{target}."}],
+                                "probe": probe,
+                                "comparison": cohypo_text,
                                 "target": target,
-                                "c_word": cs[i],
                             }, ensure_ascii=False) + "\n")
+
+    if "cohyponym_A" in eval_type:
+        create_cohyponym_A()
+
+    def create_cohyponym_B():
+        metaprompts = {"metaprompt1": """Please answer the following question about whether the two words belong to the same category. Respond by saying only "True" or "False". """,
+                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
+                       "metaprompt3": ""}
+
+        prompt_templates = {
+                "prompt1": "{W} {X} is {Y} {Z}.",
+                "prompt2": "{W} {X} is a kind of {Z}.",
+                "prompt3": "{W} {X} is a type of {Z}.",
+                "prompt4": "{W} {X} belongs to the category {Z}.",
+                "prompt5": "{W} {X} is classified as {Y} {Z}.",
+                "negated_prompt1": "{W} {X} is not {Y} {Z}.",
+                "negated_prompt2": "{W} {X} is not a kind of {Z}.",
+                "negated_prompt3": "{W} {X} is not a type of {Z}.",
+                "negated_prompt4": "{W} {X} does not belong to the category {Z}.",
+                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}.",
+                "control_prompt1": "{X}_{Z}.",
+                "control_prompt2": "{X}: {Z}.",
+                "control_prompt3": "{X} -> {Z}.",
+                "control_prompt4": "{X} — {Z}.",
+                "control_prompt5": "{X} and {Z}."
+        }
+        
+        for metaprompt_type, metaprompt in metaprompts.items():
+            for prompt_type, prompt_template in prompt_templates.items():
+                path = f"{output_dir}/cohyponym_B_{metaprompt_type}_{prompt_type}.jsonl"
+                with open(path, "w", encoding="utf-8") as f:
+                    for rec in records:
+                        conditions = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
+                        for i in range(2):
+                            for j in range(len(conditions)):
+                                probe = rec["probe"]
+                                probe_determiner = probe_determiner_dict[probe]
+                                cohyp_determiner = probe_determiner_dict[rec[conditions[j]]]
+                                cohypo_text = rec[conditions[j]]
+
+                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                                input_text = " ".join(input_text.split())
+                                clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                                clean_prompt = " ".join(clean_prompt.split())
+
+                                target = "True" if i == 0 else "False"
+                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+
+                                f.write(json.dumps({
+                                    "relationship": "cohyponym",
+                                    "task": "verification",
+                                    "condition": conditions[j],
+                                    "meta_prompt_key": metaprompt_type,
+                                    "prompt_key": prompt_type,
+                                    "combined_prompt": metaprompt + clean_prompt,
+                                    "input_text": [
+                                        {"role": "user", "content": metaprompt + input_text},
+                                        {"role": "assistant", "content": target}
+                                    ],
+                                    "probe": probe,
+                                    "comparison": cohypo_text,
+                                    "target": target,
+                                }, ensure_ascii=False) + "\n")
                     
-    if "cohypo_eval_B" in eval_type:
-        create_cohypo_eval_B()
+    if "cohyponym_B" in eval_type:
+        create_cohyponym_B()
 
     if eval_type == "all":
-        create_cat_eval_A()
-        create_cat_eval_B()
-        create_cohypo_eval_A()
-        create_cohypo_eval_B()
+        create_superordinate_A()
+        create_superordinate_B()
+        create_cohyponym_A()
+        create_cohyponym_B()
