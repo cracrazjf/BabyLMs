@@ -142,26 +142,26 @@ def prepare_evaluation_data(eval_type: str,
     os.makedirs(output_dir, exist_ok=True)
 
     def create_superordinate_A():
-        metaprompts = {"metaprompt1": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
-                       "metaprompt2": "Please complete the following sentence naturally. ",
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
+                       "neutral": "Please complete the following sentence naturally. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is {Y} {Z}.",
-                "prompt2": "{W} {X} is a kind of {Z}.",
-                "prompt3": "{W} {X} is a type of {Z}.",
-                "prompt4": "{W} {X} belongs to the category {Z}.",
-                "prompt5": "{W} {X} is classified as {Y} {Z}.",
-                "negated_prompt1": "{W} {X} is not {Y} {Z}.",
-                "negated_prompt2": "{W} {X} is not a kind of {Z}.",
-                "negated_prompt3": "{W} {X} is not a type of {Z}.",
-                "negated_prompt4": "{W} {X} does not belong to the category {Z}.",
-                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}.",
-                "control_prompt1": "{X} _ {Z}.",
-                "control_prompt2": "{X}: {Z}.",
-                "control_prompt3": "{X} -> {Z}.",
-                "control_prompt4": "{X} — {Z}.",
-                "control_prompt5": "{X} and {Z}."
+                "task_biased1": "{W} {X} is {Y} {Z}.",
+                "task_biased2": "{W} {X} is a kind of {Z}.",
+                "task_biased3": "{W} {X} is a type of {Z}.",
+                "task_biased4": "{W} {X} belongs to the category {Z}.",
+                "task_biased5": "{W} {X} is classified as {Y} {Z}.",
+                "negated_task_biased1": "{W} {X} is not {Y} {Z}.",
+                "negated_task_biased2": "{W} {X} is not a kind of {Z}.",
+                "negated_task_biased3": "{W} {X} is not a type of {Z}.",
+                "negated_task_biased4": "{W} {X} does not belong to the category {Z}.",
+                "negated_task_biased5": "{W} {X} is not classified as {Y} {Z}.",
+                "control1": "{X} {Z}.",
+                "control2": "{X}: {Z}.",
+                "control3": "{X} -> {Z}.",
+                "control4": "{X} — {Z}.",
+                "control5": "{X} and {Z}."
         }
         
         
@@ -206,26 +206,26 @@ def prepare_evaluation_data(eval_type: str,
         create_superordinate_A()
         
     def create_superordinate_B():
-        metaprompts = {"metaprompt1": """Please answer the following question about the whether the provided word belongs to the stated category. Respond by saying only "True" or "False". """,
-                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please answer the following question about the whether the provided word belongs to the stated category. Respond by saying only Yes or No. ",
+                       "neutral": "Please answer the following question. Respond by saying only Yes or No. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is {Y} {Z}. {A}",
-                "prompt2": "{W} {X} is a kind of {Z}. {A}",
-                "prompt3": "{W} {X} is a type of {Z}. {A}",
-                "prompt4": "{W} {X} belongs to the category {Z}. {A}",
-                "prompt5": "{W} {X} is classified as {Y} {Z}. {A}",
-                "negated_prompt1": "{W} {X} is not {Y} {Z}. {A}",
-                "negated_prompt2": "{W} {X} is not a kind of {Z}. {A}",
-                "negated_prompt3": "{W} {X} is not a type of {Z}. {A}",
-                "negated_prompt4": "{W} {X} does not belong to the category {Z}. {A}",
-                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}. {A}",
-                "control_prompt1": "{X} _ {Z}. {A}",
-                "control_prompt2": "{X}: {Z}. {A}",
-                "control_prompt3": "{X} -> {Z}. {A}",
-                "control_prompt4": "{X} — {Z}. {A}",
-                "control_prompt5": "{X} and {Z}. {A}"
+                "task_biased1": "Question: Is {W} {X} {Y} {Z}? Answer: {A}",
+                "task_biased2": "Question: Is {W} {X} a kind of {Z}? Answer: {A}",
+                "task_biased3": "Question: Is {W} {X} a type of {Z}? Answer: {A}",
+                "task_biased4": "Question: Does {W} {X} belong to the category {Z}? Answer: {A}",
+                "task_biased5": "Question: Is {W} {X} classified as {Y} {Z}? Answer: {A}",
+                "negated_task_biased1": "Question: Is {W} {X} not {Y} {Z}? Answer: {A}",
+                "negated_task_biased2": "Question: Is {W} {X} not a kind of {Z}? Answer: {A}",
+                "negated_task_biased3": "Question: Is {W} {X} not a type of {Z}? Answer: {A}",
+                "negated_task_biased4": "Question: Does {W} {X} not belong to the category {Z}? Answer: {A}",
+                "negated_task_biased5": "Question: Is {W} {X} not classified as {Y} {Z}? Answer: {A}",
+                "control1": "Question: {X} {Z}? Answer: {A}",
+                "control2": "Question: {X}: {Z}? Answer: {A}",
+                "control3": "Question: {X} -> {Z}? Answer: {A}",
+                "control4": "Question: {X} — {Z}? Answer: {A}",
+                "control5": "Question: {X} and {Z}? Answer: {A}"
         }
         
         for metaprompt_type, metaprompt in metaprompts.items():
@@ -234,59 +234,58 @@ def prepare_evaluation_data(eval_type: str,
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         conditions = ["category1", "category3", "category4"]
-                        for i in range(2):
-                            for j in range(len(conditions)):
-                                probe = rec["probe"]
-                                probe_determiner = probe_determiner_dict[probe]
-                                category_determiner = category_determiner_dict[rec[conditions[j]]]
-                                category_text = rec[conditions[j]]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            category_determiner = category_determiner_dict[rec[conditions[i]]]
+                            category_text = rec[conditions[i]]
 
-                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text, A="True" if i == 0 else "False").strip()
-                                input_text = " ".join(input_text.split())
-                                clean_prompt = prompt_template.split("{A}", 1)[0].format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
-                                clean_prompt = " ".join(clean_prompt.split())
-                                
-                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
-                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text, A="Yes" if i == 0 else "No").strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.split("{A}", 1)[0].format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                            clean_prompt = " ".join(clean_prompt.split())
+                            
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
 
-                                target = " True" if i == 0 else " False"
-                                f.write(json.dumps({
-                                    "relationship": "superordinate",
-                                    "task": "verification",
-                                    "condition": conditions[j],
-                                    "meta_prompt_key": metaprompt_type,
-                                    "prompt_key": prompt_type,
-                                    "combined_prompt": metaprompt + clean_prompt,
-                                    "input_text": metaprompt + input_text,
-                                    "probe": probe,
-                                    "comparison": category_text,
-                                    "target": target
-                                }, ensure_ascii=False) + "\n")
+                            target = " Yes" if i == 0 else " No"
+                            f.write(json.dumps({
+                                "relationship": "superordinate",
+                                "task": "verification",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": metaprompt + input_text,
+                                "probe": probe,
+                                "comparison": category_text,
+                                "target": target
+                            }, ensure_ascii=False) + "\n")
 
     if "superordinate_B" in eval_type:
         create_superordinate_B()
 
     def create_cohyponym_A():
-        metaprompts = {"metaprompt1": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
-                       "metaprompt2": "Please complete the following sentence naturally. ",
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
+                       "neutral": "Please complete the following sentence naturally. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is like {Y} {Z}.",
-                "prompt2": "{W} {X} is similar to {Y} {Z}.",
-                "prompt3": "Two words that belong to the same category are {X} and {Z}.",
-                "prompt4": "Another word that belongs to the same category as {X} is {Z}.",
-                "prompt5": "{X} is the same type of thing as {Z}.",
-                "negated_prompt1": "{W} {X} is not like {Y} {Z}.",
-                "negated_prompt2": "{W} {X} is not similar to {Y} {Z}.",
-                "negated_prompt3": "Two words that do not belong to the same category are {X} and {Z}.",
-                "negated_prompt4": "Another word that does not belong to the same category as {X} is {Z}.",
-                "negated_prompt5": "{X} is not the same type of thing as {Z}.",
-                "control_prompt1": "{X} _ {Z}.",
-                "control_prompt2": "{X}: {Z}.",
-                "control_prompt3": "{X} -> {Z}.",
-                "control_prompt4": "{X} — {Z}.",
-                "control_prompt5": "{X} and {Z}."
+                "task_biased1": "{W} {X} is like {Y} {Z}.",
+                "task_biased2": "{W} {X} is similar to {Y} {Z}.",
+                "task_biased3": "Two words that belong to the same category are {X} and {Z}.",
+                "task_biased4": "Another word that belongs to the same category as {X} is {Z}.",
+                "task_biased5": "{X} is the same type of thing as {Z}.",
+                "negated_task_biased1": "{W} {X} is not like {Y} {Z}.",
+                "negated_task_biased2": "{W} {X} is not similar to {Y} {Z}.",
+                "negated_task_biased3": "Two words that do not belong to the same category are {X} and {Z}.",
+                "negated_task_biased4": "Another word that does not belong to the same category as {X} is {Z}.",
+                "negated_task_biased5": "{X} is not the same type of thing as {Z}.",
+                "control1": "{X} {Z}.",
+                "control2": "{X}: {Z}.",
+                "control3": "{X} -> {Z}.",
+                "control4": "{X} — {Z}.",
+                "control5": "{X} and {Z}."
         }
         
         for metaprompt_type, metaprompt in metaprompts.items():
@@ -328,26 +327,26 @@ def prepare_evaluation_data(eval_type: str,
         create_cohyponym_A()
 
     def create_cohyponym_B():
-        metaprompts = {"metaprompt1": """Please answer the following question about whether the two words belong to the same category. Respond by saying only "True" or "False". """,
-                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please answer the following question about whether the two words belong to the same category. Respond by saying only Yes or No. ",
+                       "neutral": "Please answer the following question. Respond by saying only Yes or No. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is like {Y} {Z}. Answer: {A}",
-                "prompt2": "{W} {X} is similar to {Y} {Z}. Answer: {A}",
-                "prompt3": "Two words that belong to the same category are {X} and {Z}. Answer: {A}",
-                "prompt4": "Another word that belongs to the same category as {X} is {Z}. Answer: {A}",
-                "prompt5": "{X} is the same type of thing as {Z}. Answer: {A}",
-                "negated_prompt1": "{W} {X} is not like {Y} {Z}. Answer: {A} {A}",
-                "negated_prompt2": "{W} {X} is not similar to {Y} {Z}. Answer: {A}",
-                "negated_prompt3": "Two words that do not belong to the same category are {X} and {Z}. Answer: {A}",
-                "negated_prompt4": "Another word that does not belong to the same category as {X} is {Z}. Answer: {A}",
-                "negated_prompt5": "{X} is not the same type of thing as {Z}. Answer: {A}",
-                "control_prompt1": "{X} _ {Z}. Answer: {A}",
-                "control_prompt2": "{X}: {Z}. Answer: {A}",
-                "control_prompt3": "{X} -> {Z}. Answer: {A}",
-                "control_prompt4": "{X} — {Z}. Answer: {A}",
-                "control_prompt5": "{X} and {Z}. Answer: {A}"
+                "task_biased1": "Question: Is {W} {X} like {Y} {Z}? Answer: {A}",
+                "task_biased2": "Question: Is {W} {X} similar to {Y} {Z}? Answer: {A}",
+                "task_biased3": "Question: Are two words that belong to the same category {X} and {Z}? Answer: {A}",
+                "task_biased4": "Question: Is another word that belongs to the same category as {X} {Z}? Answer: {A}",
+                "task_biased5": "Question: Is {X} the same type of thing as {Z}? Answer: {A}",
+                "negated_task_biased1": "Question: Is {W} {X} not like {Y} {Z}? Answer: {A} {A}",
+                "negated_task_biased2": "Question: Is {W} {X} not similar to {Y} {Z}? Answer: {A}",
+                "negated_task_biased3": "Question: Are two words that do not belong to the same category {X} and {Z}? Answer: {A}",
+                "negated_task_biased4": "Question: Is another word that does not belong to the same category as {X} {Z}? Answer: {A}",
+                "negated_task_biased5": "Question: Is {X} not the same type of thing as {Z}? Answer: {A}",
+                "control1": "Question: {X} {Z}? Answer: {A}",
+                "control2": "Question: {X}: {Z}? Answer: {A}",
+                "control3": "Question: {X} -> {Z}? Answer: {A}",
+                "control4": "Question: {X} — {Z}? Answer: {A}",
+                "control5": "Question: {X} and {Z}? Answer: {A}"
         }
         
         for metaprompt_type, metaprompt in metaprompts.items():
@@ -356,35 +355,34 @@ def prepare_evaluation_data(eval_type: str,
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         conditions = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
-                        for i in range(2):
-                            for j in range(len(conditions)):
-                                probe = rec["probe"]
-                                probe_determiner = probe_determiner_dict[probe]
-                                cohyp_determiner = probe_determiner_dict[rec[conditions[j]]]
-                                cohypo_text = rec[conditions[j]]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            cohyp_determiner = probe_determiner_dict[rec[conditions[i]]]
+                            cohypo_text = rec[conditions[i]]
 
-                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text, A="True" if i == 0 else "False").strip()
-                                input_text = " ".join(input_text.split())
-                                clean_prompt = prompt_template.split("{A}", 1)[0].format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
-                                clean_prompt = " ".join(clean_prompt.split())
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text, A="Yes" if i < 2 else "No").strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.split("{A}", 1)[0].format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                            clean_prompt = " ".join(clean_prompt.split())
 
-                                target = " True" if i == 0 else " False"
-                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
-                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+                            target = " Yes" if i < 2 else " No"
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
 
-                                f.write(json.dumps({
-                                    "relationship": "cohyponym",
-                                    "task": "verification",
-                                    "condition": conditions[j],
-                                    "meta_prompt_key": metaprompt_type,
-                                    "prompt_key": prompt_type,
-                                    "combined_prompt": metaprompt + clean_prompt,
-                                    "input_text": metaprompt + input_text,
-                                    "probe": probe,
-                                    "comparison": cohypo_text,
-                                    "target": target,
-                                }, ensure_ascii=False) + "\n")
-                
+                            f.write(json.dumps({
+                                "relationship": "cohyponym",
+                                "task": "verification",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": metaprompt + input_text,
+                                "probe": probe,
+                                "comparison": cohypo_text,
+                                "target": target,
+                            }, ensure_ascii=False) + "\n")
+            
     if "cohyponym_B" in eval_type:
         create_cohyponym_B()
 
@@ -413,26 +411,26 @@ def prepare_chat_evaluation_data(eval_type: str,
     os.makedirs(output_dir, exist_ok=True)
 
     def create_superordinate_A():
-        metaprompts = {"metaprompt1": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
-                       "metaprompt2": "Please complete the following sentence naturally. ",
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
+                       "neutral": "Please complete the following sentence naturally. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is {Y}",
-                "prompt2": "{W} {X} is a kind of",
-                "prompt3": "{W} {X} is a type of",
-                "prompt4": "{W} {X} belongs to the category",
-                "prompt5": "{W} {X} is classified as {Y}",
-                "negated_prompt1": "{W} {X} is not {Y}",
-                "negated_prompt2": "{W} {X} is not a kind of",
-                "negated_prompt3": "{W} {X} is not a type of",
-                "negated_prompt4": "{W} {X} does not belong to the category",
-                "negated_prompt5": "{W} {X} is not classified as {Y}",
-                "control_prompt1": "{X} _ ",
-                "control_prompt2": "{X}: ",
-                "control_prompt3": "{X} -> ",
-                "control_prompt4": "{X} — ",
-                "control_prompt5": "{X} and "
+                "task_biased1": "{W} {X} is {Y}",
+                "neutral2": "{W} {X} is a kind of",
+                "neutral3": "{W} {X} is a type of",
+                "neutral4": "{W} {X} belongs to the category",
+                "neutral5": "{W} {X} is classified as {Y}",
+                "negated_task_biased1": "{W} {X} is not {Y}",
+                "negated_neutral2": "{W} {X} is not a kind of",
+                "negated_neutral3": "{W} {X} is not a type of",
+                "negated_neutral4": "{W} {X} does not belong to the category",
+                "negated_neutral5": "{W} {X} is not classified as {Y}",
+                "control1": "{X}",
+                "control2": "{X}:",
+                "control3": "{X} ->",
+                "control4": "{X} —",
+                "control5": "{X} and"
         }
         
         for metaprompt_type, metaprompt in metaprompts.items():
@@ -475,26 +473,26 @@ def prepare_chat_evaluation_data(eval_type: str,
         create_superordinate_A()
 
     def create_superordinate_B():
-        metaprompts = {"metaprompt1": """Please answer the following question about the whether the provided word belongs to the stated category. Respond by saying only "True" or "False". """,
-                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please answer the following question about the whether the provided word belongs to the stated category. Respond by saying only Yes or No. ",
+                       "neutral": "Please answer the following question. Respond by saying only Yes or No. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is {Y} {Z}.",
-                "prompt2": "{W} {X} is a kind of {Z}.",
-                "prompt3": "{W} {X} is a type of {Z}.",
-                "prompt4": "{W} {X} belongs to the category {Z}.",
-                "prompt5": "{W} {X} is classified as {Y} {Z}.",
-                "negated_prompt1": "{W} {X} is not {Y} {Z}.",
-                "negated_prompt2": "{W} {X} is not a kind of {Z}.",
-                "negated_prompt3": "{W} {X} is not a type of {Z}.",
-                "negated_prompt4": "{W} {X} does not belong to the category {Z}.",
-                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}.",
-                "control_prompt1": "{X}_{Z}.",
-                "control_prompt2": "{X}: {Z}.",
-                "control_prompt3": "{X} -> {Z}.",
-                "control_prompt4": "{X} — {Z}.",
-                "control_prompt5": "{X} and {Z}."
+                "task_biased1": "Is {W} {X} {Y} {Z}?",
+                "task_biased2": "Is {W} {X} a kind of {Z}?",
+                "task_biased3": "Is {W} {X} a type of {Z}?",
+                "task_biased4": "Does {W} {X} belong to the category {Z}?",
+                "task_biased5": "Is {W} {X} classified as {Y} {Z}?",
+                "negated_task_biased1": "Is {W} {X} not {Y} {Z}?",
+                "negated_task_biased2": "Is {W} {X} not a kind of {Z}?",
+                "negated_task_biased3": "Is {W} {X} not a type of {Z}?",
+                "negated_task_biased4": "Does {W} {X} not belong to the category {Z}?",
+                "negated_task_biased5": "Is {W} {X} not classified as {Y} {Z}?",
+                "control1": "{X} {Z}?",
+                "control2": "{X}: {Z}?",
+                "control3": "{X} -> {Z}?",
+                "control4": "{X} — {Z}?",
+                "control5": "{X} and {Z}?"
         }
         
         for metaprompt_type, metaprompt in metaprompts.items():
@@ -503,60 +501,59 @@ def prepare_chat_evaluation_data(eval_type: str,
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         conditions = ["category1", "category3", "category4"]
-                        for i in range(2):
-                            for j in range(len(conditions)):
-                                probe = rec["probe"]
-                                probe_determiner = probe_determiner_dict[probe]
-                                category_determiner = category_determiner_dict[rec[conditions[j]]]
-                                category_text = rec[conditions[j]]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            category_determiner = category_determiner_dict[rec[conditions[i]]]
+                            category_text = rec[conditions[i]]
 
-                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
-                                input_text = " ".join(input_text.split())
-                                clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
-                                clean_prompt = " ".join(clean_prompt.split())
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y=category_determiner, Z=category_text).strip()
+                            clean_prompt = " ".join(clean_prompt.split())
 
-                                target = "True" if i == 0 else "False"
-                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
-                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+                            target = "Yes" if i == 0 else "No"
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
 
-                                f.write(json.dumps({
-                                    "relationship": "superordinate",
-                                    "task": "verification",
-                                    "condition": conditions[j],
-                                    "meta_prompt_key": metaprompt_type,
-                                    "prompt_key": prompt_type,
-                                    "combined_prompt": metaprompt + clean_prompt,
-                                    "input_text": [
-                                        {"role": "user", "content": metaprompt + input_text},
-                                        {"role": "assistant", "content": target}],
-                                    "probe": probe,
-                                    "comparison": category_text,
-                                    "target": target
-                                }, ensure_ascii=False) + "\n")
+                            f.write(json.dumps({
+                                "relationship": "superordinate",
+                                "task": "verification",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": [
+                                    {"role": "user", "content": metaprompt + input_text},
+                                    {"role": "assistant", "content": target}],
+                                "probe": probe,
+                                "comparison": category_text,
+                                "target": target
+                            }, ensure_ascii=False) + "\n")
     if "superordinate_B" in eval_type:
         create_superordinate_B()
 
     def create_cohyponym_A():
-        metaprompts = {"metaprompt1": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
-                       "metaprompt2": "Please complete the following sentence naturally. ",
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
+                       "neutral": "Please complete the following sentence naturally. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is like {Y}",
-                "prompt2": "{W} {X} is similar to {Y}",
-                "prompt3": "Two words that belong to the same category are {X} and",
-                "prompt4": "Another word that belongs to the same category as {X} is",
-                "prompt5": "{X} is the same type of thing as",
-                "negated_prompt1": "{W} {X} is not like {Y}",
-                "negated_prompt2": "{W} {X} is not similar to {Y}",
-                "negated_prompt3": "Two words that do not belong to the same category are {X} and",
-                "negated_prompt4": "Another word that does not belong to the same category as {X} is",
-                "negated_prompt5": "{X} is not the same type of thing as",
-                "control_prompt1": "{X}_",
-                "control_prompt2": "{X}: ",
-                "control_prompt3": "{X} -> ",
-                "control_prompt4": "{X} — ",
-                "control_prompt5": "{X} and "
+                "task_biased1": "{W} {X} is like {Y}",
+                "task_biased2": "{W} {X} is similar to {Y}",
+                "task_biased3": "Two words that belong to the same category are {X} and",
+                "task_biased4": "Another word that belongs to the same category as {X} is",
+                "task_biased5": "{X} is the same type of thing as",
+                "negated_task_biased1": "{W} {X} is not like {Y}",
+                "negated_task_biased2": "{W} {X} is not similar to {Y}",
+                "negated_task_biased3": "Two words that do not belong to the same category are {X} and",
+                "negated_task_biased4": "Another word that does not belong to the same category as {X} is",
+                "negated_task_biased5": "{X} is not the same type of thing as",
+                "control1": "{X}",
+                "control2": "{X}:",
+                "control3": "{X} ->",
+                "control4": "{X} —",
+                "control5": "{X} and"
         }
         for metaprompt_type, metaprompt in metaprompts.items():
             for prompt_type, prompt_template in prompt_templates.items():
@@ -597,26 +594,26 @@ def prepare_chat_evaluation_data(eval_type: str,
         create_cohyponym_A()
 
     def create_cohyponym_B():
-        metaprompts = {"metaprompt1": """Please answer the following question about whether the two words belong to the same category. Respond by saying only "True" or "False". """,
-                       "metaprompt2": """Please answer the following question. Respond by saying only "True" or "False". """,
-                       "metaprompt3": ""}
+        metaprompts = {"task_biased": "Please answer the following question about whether the two words belong to the same category. Respond by saying only Yes or No. ",
+                       "neutral": "Please answer the following question. Respond by saying only Yes or No. ",
+                       "none": ""}
 
         prompt_templates = {
-                "prompt1": "{W} {X} is {Y} {Z}.",
-                "prompt2": "{W} {X} is a kind of {Z}.",
-                "prompt3": "{W} {X} is a type of {Z}.",
-                "prompt4": "{W} {X} belongs to the category {Z}.",
-                "prompt5": "{W} {X} is classified as {Y} {Z}.",
-                "negated_prompt1": "{W} {X} is not {Y} {Z}.",
-                "negated_prompt2": "{W} {X} is not a kind of {Z}.",
-                "negated_prompt3": "{W} {X} is not a type of {Z}.",
-                "negated_prompt4": "{W} {X} does not belong to the category {Z}.",
-                "negated_prompt5": "{W} {X} is not classified as {Y} {Z}.",
-                "control_prompt1": "{X}_{Z}.",
-                "control_prompt2": "{X}: {Z}.",
-                "control_prompt3": "{X} -> {Z}.",
-                "control_prompt4": "{X} — {Z}.",
-                "control_prompt5": "{X} and {Z}."
+                "task_biased1": "Is {W} {X} like {Y} {Z}?",
+                "task_biased2": "Is {W} {X} similar to {Z}?",
+                "task_biased3": "Are two words that belong to the same category {X} and {Z}?",
+                "task_biased4": "Is another word that belongs to the same category as {X} {Z}?",
+                "task_biased5": "Is {X} the same type of thing as {Z}?",
+                "negated_task_biased1": "Is {W} {X} not like {Y} {Z}?",
+                "negated_task_biased2": "Is {W} {X} not similar to {Z}?",
+                "negated_task_biased3": "Are two words that notbelong to the same category {X} and {Z}?",
+                "negated_task_biased4": "Is another word that does not belong to the same category as {X} {Z}?",
+                "negated_task_biased5": "Is {X} not the same type of thing as {Z}?",
+                "control1": "{X} {Z}?",
+                "control2": "{X}: {Z}?",
+                "control3": "{X} -> {Z}?",
+                "control4": "{X} — {Z}?",
+                "control5": "{X} and {Z}?"
         }
         
         for metaprompt_type, metaprompt in metaprompts.items():
@@ -625,37 +622,35 @@ def prepare_chat_evaluation_data(eval_type: str,
                 with open(path, "w", encoding="utf-8") as f:
                     for rec in records:
                         conditions = ["cohyp1", "cohyp2", "cohyp3", "cohyp4"]
-                        for i in range(2):
-                            for j in range(len(conditions)):
-                                probe = rec["probe"]
-                                probe_determiner = probe_determiner_dict[probe]
-                                cohyp_determiner = probe_determiner_dict[rec[conditions[j]]]
-                                cohypo_text = rec[conditions[j]]
+                        for i in range(len(conditions)):
+                            probe = rec["probe"]
+                            probe_determiner = probe_determiner_dict[probe]
+                            cohyp_determiner = probe_determiner_dict[rec[conditions[i]]]
+                            cohypo_text = rec[conditions[i]]
+                            input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                            input_text = " ".join(input_text.split())
+                            clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
+                            clean_prompt = " ".join(clean_prompt.split())
 
-                                input_text = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
-                                input_text = " ".join(input_text.split())
-                                clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y=cohyp_determiner, Z=cohypo_text).strip()
-                                clean_prompt = " ".join(clean_prompt.split())
+                            target = "Yes" if i < 2 else "No"
+                            probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
+                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
 
-                                target = "True" if i == 0 else "False"
-                                probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
-                                probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
-
-                                f.write(json.dumps({
-                                    "relationship": "cohyponym",
-                                    "task": "verification",
-                                    "condition": conditions[j],
-                                    "meta_prompt_key": metaprompt_type,
-                                    "prompt_key": prompt_type,
-                                    "combined_prompt": metaprompt + clean_prompt,
-                                    "input_text": [
-                                        {"role": "user", "content": metaprompt + input_text},
-                                        {"role": "assistant", "content": target}
-                                    ],
-                                    "probe": probe,
-                                    "comparison": cohypo_text,
-                                    "target": target,
-                                }, ensure_ascii=False) + "\n")
+                            f.write(json.dumps({
+                                "relationship": "cohyponym",
+                                "task": "verification",
+                                "condition": conditions[i],
+                                "meta_prompt_key": metaprompt_type,
+                                "prompt_key": prompt_type,
+                                "combined_prompt": metaprompt + clean_prompt,
+                                "input_text": [
+                                    {"role": "user", "content": metaprompt + input_text},
+                                    {"role": "assistant", "content": target}
+                                ],
+                                "probe": probe,
+                                "comparison": cohypo_text,
+                                "target": target,
+                            }, ensure_ascii=False) + "\n")
                     
     if "cohyponym_B" in eval_type:
         create_cohyponym_B()

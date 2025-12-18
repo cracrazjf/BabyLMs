@@ -7,7 +7,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
 from transformers import DataCollatorWithPadding
-from eval_fn import eval_fn
+from eval_fn import cloze_eval_fn, verification_eval_fn
 from prepare_dataset import prepare_evaluation_data, create_raw_data
 
 def main():
@@ -101,6 +101,11 @@ def main():
                             shuffle=False, 
                             num_workers=0,
                             collate_fn=collate_fn)
+        
+        if "A" in cfg.task:
+            eval_fn = cloze_eval_fn
+        else:
+            eval_fn = verification_eval_fn
         
         results = tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
 
