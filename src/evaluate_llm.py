@@ -9,16 +9,17 @@ from datasets import load_dataset
 from psychai.language.llm import ModelManager, TrainingManager
 from psychai.config import EvaluationConfig, update_config
 from transformers import DataCollatorWithPadding
-from eval_fn import eval_fn
+from eval_fn import cloze_eval_fn, verification_eval_fn
 from prepare_dataset import prepare_evaluation_data, create_raw_data, prepare_chat_evaluation_data
 
 def main():
     cfg = EvaluationConfig()
     updates = {
         "model": {
-            "name": "unsloth/Meta-Llama-3.1-8B",
-            "path": f"unsloth/Meta-Llama-3.1-8B",
-            "model_type": "llama3.1-8b",
+            # unsloth/Qwen3-8B-Base, unsloth/Meta-Llama-3.1-8B
+            "name": "unsloth/Qwen3-8B-Base",
+            "path": f"unsloth/Qwen3-8B-Base",
+            "model_type": "qwen-3-8b",
         },
         "data": {
             "test_path": f"/root/autodl-tmp/data/ACL/plain_eval_data",
@@ -32,9 +33,9 @@ def main():
             "layer_of_interest": 0,
         },
         "root_dir": "/root/autodl-tmp/",
-        "exp_name": "meta_llama_3.1_8b_base_evaluation",
-        "exp_dir": f"/root/autodl-tmp/evaluation/meta_llama_3.1_8b_base",
-        "task": "all",
+        "exp_name": "qwen3_8b_base_evaluation",
+        "exp_dir": f"/root/autodl-tmp/evaluation/qwen3_8b_base",
+        "task": "superordinate_B",
         "device": "cuda"
     }
     cfg = update_config(cfg, updates)
@@ -110,7 +111,6 @@ def main():
                                             num_proc=cfg.data.data_process_num_proc)
         else:
             def _tokenize_function(batch):
-                print(batch["input_text"])
                 input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=False, truncation=False)
 
                 return {
@@ -129,6 +129,11 @@ def main():
                             batch_size=cfg.data.batch_size, 
                             shuffle=False, 
                             collate_fn=collate_fn)
+        
+        if "_A" in test_file:
+            eval_fn = cloze_eval_fn
+        else:
+            eval_fn = verification_eval_fn
             
         results = tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
 
