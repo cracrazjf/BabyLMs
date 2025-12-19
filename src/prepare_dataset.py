@@ -417,7 +417,7 @@ def prepare_chat_evaluation_data(eval_type: str,
 
     def create_superordinate_A():
         metaprompts = {"task_biased": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
-                       "neutral": "Please complete the following sentence naturally. ",
+                       "neutral": "Please complete the following sentence in a natural and fluent way in English. Respond as concisely as possible. ",
                        "none": ""}
 
         prompt_templates = {
@@ -426,11 +426,11 @@ def prepare_chat_evaluation_data(eval_type: str,
                 "task_biased3": "{W} {X} is a type of",
                 "task_biased4": "{W} {X} belongs to the category",
                 "task_biased5": "{W} {X} is classified as {Y}",
-                "negated_task_biased1": "{W} {X} is not {Y}",
-                "negated_task_biased2": "{W} {X} is not a kind of",
-                "negated_task_biased3": "{W} {X} is not a type of",
-                "negated_task_biased4": "{W} {X} does not belong to the category",
-                "negated_task_biased5": "{W} {X} is not classified as {Y}",
+                # "negated_task_biased1": "{W} {X} is not {Y}",
+                # "negated_task_biased2": "{W} {X} is not a kind of",
+                # "negated_task_biased3": "{W} {X} is not a type of",
+                # "negated_task_biased4": "{W} {X} does not belong to the category",
+                # "negated_task_biased5": "{W} {X} is not classified as {Y}",
                 "control1": "{X}",
                 "control2": "{X}:",
                 "control3": "{X} ->",
@@ -454,9 +454,12 @@ def prepare_chat_evaluation_data(eval_type: str,
                             input_text = " ".join(input_text.split())
                             clean_prompt = prompt_template.split("{Z}", 1)[0].format(W=probe_determiner,X=probe, Y="CATEGORY_DETERMINER").strip()
 
-                            target = category_text
+                            target = " " + category_text
                             probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
-                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+                            if not re.search(probe_search_pattern, metaprompt + input_text):
+                                input_text = " " + input_text
+                                clean_prompt = " " + clean_prompt
+                            probe = " " + probe
 
                             f.write(json.dumps({
                                 "relationship": "superordinate",
@@ -540,7 +543,7 @@ def prepare_chat_evaluation_data(eval_type: str,
 
     def create_cohyponym_A():
         metaprompts = {"task_biased": "Please complete the following sentence about words and whether they belong to the same category. Respond as concisely as possible. ",
-                       "neutral": "Please complete the following sentence naturally. ",
+                       "neutral": "Please complete the following sentence in a natural and fluent way in English. Respond as concisely as possible. ",
                        "none": ""}
 
         prompt_templates = {
@@ -549,11 +552,11 @@ def prepare_chat_evaluation_data(eval_type: str,
                 "task_biased3": "Two words that belong to the same category are {X} and",
                 "task_biased4": "Another word that belongs to the same category as {X} is",
                 "task_biased5": "{X} is the same type of thing as",
-                "negated_task_biased1": "{W} {X} is not like {Y}",
-                "negated_task_biased2": "{W} {X} is not similar to {Y}",
-                "negated_task_biased3": "Two words that do not belong to the same category are {X} and",
-                "negated_task_biased4": "Another word that does not belong to the same category as {X} is",
-                "negated_task_biased5": "{X} is not the same type of thing as",
+                # "negated_task_biased1": "{W} {X} is not like {Y}",
+                # "negated_task_biased2": "{W} {X} is not similar to {Y}",
+                # "negated_task_biased3": "Two words that do not belong to the same category are {X} and",
+                # "negated_task_biased4": "Another word that does not belong to the same category as {X} is",
+                # "negated_task_biased5": "{X} is not the same type of thing as",
                 "control1": "{X}",
                 "control2": "{X}:",
                 "control3": "{X} ->",
@@ -576,9 +579,12 @@ def prepare_chat_evaluation_data(eval_type: str,
                             input_text = " ".join(input_text.split())
                             clean_prompt = prompt_template.format(W=probe_determiner, X=probe, Y="COHYP_DETERMINER").strip()
 
-                            target =cohypo_text
+                            target = " " + cohypo_text
                             probe_search_pattern = rf"(?<=\s)(?<![A-Za-z0-9]){re.escape(probe)}(?![A-Za-z0-9])"
-                            probe = " " + probe if re.search(probe_search_pattern, metaprompt + input_text) else probe
+                            if not re.search(probe_search_pattern, metaprompt + input_text):
+                                input_text = " " + input_text
+                                clean_prompt = " " + clean_prompt
+                            probe = " " + probe
 
                             f.write(json.dumps({
                                 "relationship": "cohyponym",

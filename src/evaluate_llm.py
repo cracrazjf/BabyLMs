@@ -17,12 +17,12 @@ def main():
     updates = {
         "model": {
             # unsloth/Qwen3-8B-Base, unsloth/Meta-Llama-3.1-8B
-            "name": "unsloth/Qwen3-8B-Base",
-            "path": f"unsloth/Qwen3-8B-Base",
-            "model_type": "qwen-3-8b",
+            "name": "unsloth/Qwen3-8B",
+            "path": f"unsloth/Qwen3-8B",
+            "model_type": "qwen3-8B-instruct",
         },
         "data": {
-            "test_path": f"/root/autodl-tmp/data/ACL/plain_eval_data",
+            "test_path": f"/root/autodl-tmp/data/ACL/chat_eval_data",
             "batch_size": 32,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -33,9 +33,9 @@ def main():
             "layer_of_interest": 0,
         },
         "root_dir": "/root/autodl-tmp/",
-        "exp_name": "qwen3_8b_base_evaluation",
-        "exp_dir": f"/root/autodl-tmp/evaluation/qwen3_8b_base",
-        "task": "superordinate_B",
+        "exp_name": "qwen3_8b_instruct_evaluation",
+        "exp_dir": f"/root/autodl-tmp/evaluation/qwen3_8b_instruct",
+        "task": "cohyponym_A",
         "device": "cuda"
     }
     cfg = update_config(cfg, updates)
