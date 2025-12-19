@@ -36,7 +36,7 @@ def main():
         "root_dir": "./",
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./evaluation/gpt2",
-        "task": "cohyponym_B",
+        "task": "superordinate_A",
         "device": "cpu"
     }
     cfg = update_config(cfg, updates)

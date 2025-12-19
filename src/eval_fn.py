@@ -80,7 +80,8 @@ def cloze_eval_fn(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
     for i in range(B):
         L = target_id_len[i]
         target_ids = target_ids_list[i]
-        target_lp = lp_slice[i, :L, :].gather(1, target_ids[:, None]).mean().item()
+        mean_target_lp = lp_slice[i, :L, :].gather(1, target_ids[:, None]).mean().item()
+        sum_target_lp = lp_slice[i, :L, :].gather(1, target_ids[:, None]).sum().item()
         probe = torch.tensor(mm.tokenizer(data[i]["probe"], add_special_tokens=False)["input_ids"], device=device)
         probe_len = probe.size(0)
         probe_start = find_start_pos(input_ids[i], probe)
@@ -101,7 +102,8 @@ def cloze_eval_fn(mm, cfg, inputs, labels, logits, predictions, embeds, weights)
         target_probe_pearsonr = pearsonr(target_embedding, probe_embedding)[0]
 
         result = dict(data[i])
-        result["log_prob"] = round(target_lp, 4)
+        result["mean_log_prob"] = round(mean_target_lp, 4)
+        result["sum_log_prob"] = round(sum_target_lp, 4)
         result["pearsonr"] = round(float(target_probe_pearsonr), 4)
         result["pred"] = mm.tokenizer.decode(pred_slice[i, :L].tolist())
         results.append(result)
