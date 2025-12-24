@@ -141,6 +141,20 @@ def prepare_evaluation_data(eval_type: str,
 
     os.makedirs(output_dir, exist_ok=True)
 
+    def create_control():
+        prompt_templates = " {X}"
+        all_vocabs = list(probe_determiner_dict.keys()) + list(category_determiner_dict.keys())
+        path = f"{output_dir}/control.jsonl"
+        with open(path, "w", encoding="utf-8") as f:
+            for vocab in all_vocabs:
+                input_text = prompt_templates.format(X=vocab)
+                print(input_text)
+                f.write(json.dumps({"input_text": input_text}, ensure_ascii=False) + "\n")
+                
+
+    if eval_type == "control":
+        create_control()
+
     def create_superordinate_A():
         metaprompts = {"task_biased": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
                        "neutral": "Please complete the following sentence in a natural and fluent way in English. Respond as concisely as possible. ",

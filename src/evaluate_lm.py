@@ -7,7 +7,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
 from transformers import DataCollatorWithPadding
-from eval_fn import cloze_eval_fn, verification_eval_fn
+from eval_fn import cloze_eval_fn, verification_eval_fn, control_eval_fn
 from prepare_dataset import prepare_evaluation_data, create_raw_data
 
 def main():
@@ -36,7 +36,7 @@ def main():
         "root_dir": "./",
         "exp_name": "gpt2_evaluation",
         "exp_dir": "./evaluation/gpt2",
-        "task": "superordinate_A",
+        "task": "control",
         "device": "cpu"
     }
     cfg = update_config(cfg, updates)
@@ -49,7 +49,7 @@ def main():
     #                         output_dir=cfg.data.test_path)
     # return
 
-    tasks = ["superordinate_A", "superordinate_B", "cohyponym_A", "cohyponym_B"]
+    tasks = ["superordinate_A", "superordinate_B", "cohyponym_A", "cohyponym_B", "control"]
     groups = {k: [] for k in tasks}
 
     for f in Path(cfg.data.test_path).iterdir():
@@ -84,7 +84,12 @@ def main():
             tm.mm.tokenizer.pad_token_id = tm.mm.tokenizer.eos_token_id
 
         def _tokenize_function(batch):
-            input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=False, truncation=False)
+            if cfg.task == "control":
+                bos_token = tm.mm.tokenizer.bos_token 
+                input_text = [bos_token + d for d in batch["input_text"]]
+                input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
+            else:
+                input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=True, truncation=False)
             return {"input_ids": input_enc["input_ids"]}
     
         tokenized_dataset = dataset.map(_tokenize_function, 
@@ -93,6 +98,7 @@ def main():
                                         num_proc=cfg.data.data_process_num_proc)
     
         tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
+        print(tm.mm.tokenizer.decode(tokenized_dataset[0]["input_ids"]))
 
         collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
         
@@ -104,8 +110,10 @@ def main():
         
         if "A" in cfg.task:
             eval_fn = cloze_eval_fn
-        else:
+        elif "B" in cfg.task:
             eval_fn = verification_eval_fn
+        else:
+            eval_fn = control_eval_fn
         
         results = tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
 
