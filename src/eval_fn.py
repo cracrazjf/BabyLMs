@@ -52,20 +52,36 @@ def control_eval_fn(mm, cfg, inputs, labels, logits, predictions, embeds, weight
     data = load_dataset("json", data_files=f"{cfg.data.test_path}", split="train")
     pad_id = mm.tokenizer.pad_token_id
     logits = pad_and_concat([logit.to(device) for logit in logits], pad_value=pad_id)
-    log_probs = F.log_softmax(logits, dim=-1)
+    input_ids = pad_and_concat([input.to(device) for input in inputs], pad_value=pad_id)
+    log_prob = F.log_softmax(logits, dim=-1)
 
     target_ids_list = [
-        torch.tensor(mm.tokenizer(d["input_text"], add_special_tokens=False)["input_ids"], device=device)
+        torch.tensor(mm.tokenizer(d["target"], add_special_tokens=False)["input_ids"], device=device)
         for d in data
     ]
 
+    target_logit_start = torch.tensor([find_start_pos(input_ids[i], target_ids_list[i]) - 1 for i in range(input_ids.size(0))], device=device)
+
+    target_id_len = torch.tensor([len(x) for x in target_ids_list], device=device)
+    max_target_len = max(target_id_len).item()
+    ar = torch.arange(max_target_len, device=device)
+
+    B, T, V = log_prob.shape
+    target_logit_pos = target_logit_start[:, None] + ar[None, :]
+    target_logit_pos = target_logit_pos.clamp(min=0, max=T-1)
+
+    lp_slice = log_prob.gather(1, target_logit_pos[:, :, None].expand(B, max_target_len, V))
+
     results = []
-    for i in range(len(log_probs)):
+    for i in range(len(log_prob)):
         result = dict(data[i])
-        lp_slice = log_probs[i, 1:1+len(target_ids_list[i]), :].gather(1, target_ids_list[i][:, None])
+        L = target_id_len[i]
+        target_ids = target_ids_list[i]
+        mean_target_lp = lp_slice[i, :L, :].gather(1, target_ids[:, None]).mean().item()
+        sum_target_lp = lp_slice[i, :L, :].gather(1, target_ids[:, None]).sum().item()
         result["token_id_len"] = len(target_ids_list[i])
-        result["sum_log_prob"] = lp_slice.cpu().sum().item()
-        result["mean_log_prob"] = lp_slice.cpu().mean().item()
+        result["sum_log_prob"] = sum_target_lp
+        result["mean_log_prob"] = mean_target_lp
         results.append(result)
 
     return results

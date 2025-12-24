@@ -17,12 +17,12 @@ def main():
     updates = {
         "model": {
             # unsloth/Qwen3-8B-Base, unsloth/Meta-Llama-3.1-8B
-            "name": "unsloth/Qwen3-8B-Base",
-            "path": f"unsloth/Qwen3-8B-Base",
-            "model_type": "qwen3-8B-base",
+            "name": "unsloth/Qwen3-8Bt",
+            "path": f"unsloth/Qwen3-8B",
+            "model_type": "qwen3-8b-instruct",
         },
         "data": {
-            "test_path": f"/root/autodl-tmp/data/ACL/plain_eval_data",
+            "test_path": f"/root/autodl-tmp/data/ACL/chat_eval_data",
             "batch_size": 32,
             "data_process_batch_size": 16,
             "data_process_num_proc": 0,
@@ -33,8 +33,8 @@ def main():
             "layer_of_interest": 0,
         },
         "root_dir": "/root/autodl-tmp/",
-        "exp_name": "qwen3_8b_base_evaluation",
-        "exp_dir": f"/root/autodl-tmp/evaluation/qwen3_8b_base",
+        "exp_name": "qwen3_8b_instruct_evaluation",
+        "exp_dir": f"/root/autodl-tmp/evaluation/qwen3_8b_instruct",
         "task": "control",
         "device": "cuda"
     }
@@ -44,13 +44,13 @@ def main():
     #                              category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl", 
     #                              raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
     #                              output_dir=cfg.data.test_path)
-    prepare_evaluation_data(eval_type=cfg.task,
-                            category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl",
-                            raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
-                            output_dir=cfg.data.test_path)
-    return
+    # prepare_evaluation_data(eval_type=cfg.task,
+    #                         category_file="/root/autodl-tmp/data/ACL/stimuli_with_categories.jsonl",
+    #                         raw_file="/root/autodl-tmp/data/ACL/LLM_Categories_stim.xlsx",
+    #                         output_dir=cfg.data.test_path)
+    # return
 
-    tasks = ["superordinate_A", "superordinate_B", "cohyponym_A", "cohyponym_B"]
+    tasks = ["superordinate_A", "superordinate_B", "cohyponym_A", "cohyponym_B", "control"]
     groups = {k: [] for k in tasks}
 
     for f in Path(cfg.data.test_path).iterdir():
@@ -111,12 +111,8 @@ def main():
                                             num_proc=cfg.data.data_process_num_proc)
         else:
             def _tokenize_function(batch):
-                if cfg.task == "control":
-                    bos_token = tm.mm.tokenizer.bos_token 
-                    input_text = [bos_token + d for d in batch["input_text"]]
-                    input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
-                else:
-                    input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=False, truncation=False)
+                input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=False, truncation=False)
+                print(input_enc["input_ids"])
 
                 return {
                     "input_ids": input_enc["input_ids"],}
@@ -137,8 +133,10 @@ def main():
         
         if "_A" in test_file:
             eval_fn = cloze_eval_fn
-        else:
+        elif "_B" in test_file:
             eval_fn = verification_eval_fn
+        else:
+            eval_fn = control_eval_fn
             
         results = tm.evaluate(loader, eval_fn=eval_fn, epoch=0)
 

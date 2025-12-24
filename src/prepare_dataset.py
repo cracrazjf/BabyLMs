@@ -142,7 +142,7 @@ def prepare_evaluation_data(eval_type: str,
     os.makedirs(output_dir, exist_ok=True)
 
     def create_control():
-        prompt_templates = " {X}"
+        prompt_templates = "The {X}"
         all_vocabs = list(probe_determiner_dict.keys()) + list(category_determiner_dict.keys())
         path = f"{output_dir}/control.jsonl"
         with open(path, "w", encoding="utf-8") as f:
@@ -428,6 +428,22 @@ def prepare_chat_evaluation_data(eval_type: str,
     category_determiner_dict = dict(zip(df_dict["categories"]["category"], df_dict["categories"]["category_determiner"].fillna("")))
 
     os.makedirs(output_dir, exist_ok=True)
+
+    def create_control():
+        prompt_templates = "The {X}"
+        all_vocabs = list(probe_determiner_dict.keys()) + list(category_determiner_dict.keys())
+        path = f"{output_dir}/control.jsonl"
+        with open(path, "w", encoding="utf-8") as f:
+            for vocab in all_vocabs:
+                input_text = [
+                    {"role": "user", "content": ""},
+                    {"role": "assistant", "content": prompt_templates.format(X=vocab)}
+                ]
+                f.write(json.dumps({"input_text": input_text, "target": f" {vocab}"}, ensure_ascii=False) + "\n")
+                
+
+    if eval_type == "control":
+        create_control()
 
     def create_superordinate_A():
         metaprompts = {"task_biased": "Please complete the following sentence about the category label for the word that is provided. Respond as concisely as possible. ",
