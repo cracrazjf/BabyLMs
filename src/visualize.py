@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Union, Dict
 import pandas as pd
 import os
+import json
 
 def create_accuracy_df(root_dir: str, output_path: str = "./figures_tables"):
     root_dir = Path(root_dir)
@@ -10,6 +11,7 @@ def create_accuracy_df(root_dir: str, output_path: str = "./figures_tables"):
         model_name = model_dir.name
         print(f"Processing model: {model_name}")
         files = list(model_dir.glob("*results.jsonl"))
+        control_lp_file = list(model_dir.glob("control_lp.jsonl"))[0]
         df_list = []
         for file in files:
             df = pd.read_json(file, lines=True).drop(columns=["input_text"], errors="ignore")
@@ -97,8 +99,16 @@ def create_accuracy_df(root_dir: str, output_path: str = "./figures_tables"):
             accuracy_df = pd.concat([make_pair(a, b) for a, b in pairs], ignore_index=True)
             df_list.append(accuracy_df)
 
+
+        control_lp_df = pd.read_json(control_lp_file, lines=True).drop(columns=["input_text"], errors="ignore")
+        control_lp_df["target"] = control_lp_df["target"].astype(str).str.strip()
+
         accuracy_df = pd.concat(df_list, ignore_index=True)
         accuracy_df.insert(0, "model", model_name)
+        accuracy_df["target_token_id_length"] = (accuracy_df["target"].map(control_lp_df.set_index("target")["token_id_len"]))
+        accuracy_df["comparison_token_id_length"] = (accuracy_df["comparison"].map(control_lp_df.set_index("target")["token_id_len"]))
+        accuracy_df["target_prob"] = (accuracy_df["target"].map(control_lp_df.set_index("target")["sum_log_prob"]))
+        accuracy_df["comparison_prob"] = (accuracy_df["comparison"].map(control_lp_df.set_index("target")["sum_log_prob"]))
         models_accuracy_df_list.append(accuracy_df)
 
     raw_data = pd.read_excel("./data/ACL/LLM_Categories_stim.xlsx", sheet_name=None)
@@ -108,6 +118,14 @@ def create_accuracy_df(root_dir: str, output_path: str = "./figures_tables"):
     probe_idx = models_accuracy_df.columns.get_loc("probe") + 1
     probe_category = models_accuracy_df["probe"].str.strip().map(category_dict)
     models_accuracy_df.insert(probe_idx, "probe_category", probe_category)
+
+    target_idx = models_accuracy_df.columns.get_loc("target") + 1
+    target_category = models_accuracy_df["target"].str.strip().map(category_dict)
+    models_accuracy_df.insert(target_idx, "target_category", target_category)
+
+    comparison_idx = models_accuracy_df.columns.get_loc("comparison") + 1
+    comparison_category = models_accuracy_df["comparison"].str.strip().map(category_dict)
+    models_accuracy_df.insert(comparison_idx, "comparison_category", comparison_category)
 
     prompt_key_idx = models_accuracy_df.columns.get_loc("prompt_key") + 1
     models_accuracy_df.insert(prompt_key_idx,"prompt_type", models_accuracy_df["prompt_key"].str.replace(r"\d+$", "", regex=True))
@@ -184,6 +202,7 @@ def group_and_aggregate(
 
 def main():
     output_path = "./figures_tables"
+
     Path(output_path).mkdir(exist_ok=True)
     root_dir = "./evaluation/"
     if not os.path.exists("./figures_tables/accuracy.csv"):

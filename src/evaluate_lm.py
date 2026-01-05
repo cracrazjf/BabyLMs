@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
 from transformers import DataCollatorWithPadding
 from eval_fn import cloze_eval_fn, verification_eval_fn, control_eval_fn
-from prepare_dataset import prepare_evaluation_data, create_raw_data
+from prepare_dataset import prepare_chat_evaluation_data, prepare_evaluation_data, create_raw_data
 
 def main():
     cfg = EvaluationConfig()
@@ -45,6 +45,9 @@ def main():
     # create_raw_data()
 
     # prepare_evaluation_data(eval_type=cfg.task,
+    #                         category_file="./data/ACL/stimuli_with_categories.jsonl",
+    #                         output_dir=cfg.data.test_path)
+    # prepare_chat_evaluation_data(eval_type=cfg.task,
     #                         category_file="./data/ACL/stimuli_with_categories.jsonl",
     #                         output_dir=cfg.data.test_path)
     # return
@@ -84,12 +87,7 @@ def main():
             tm.mm.tokenizer.pad_token_id = tm.mm.tokenizer.eos_token_id
 
         def _tokenize_function(batch):
-            if cfg.task == "control":
-                bos_token = tm.mm.tokenizer.bos_token 
-                input_text = [bos_token + d for d in batch["input_text"]]
-                input_enc = tm.mm.tokenizer(input_text, add_special_tokens=False, truncation=False)
-            else:
-                input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=True, truncation=False)
+            input_enc = tm.mm.tokenizer(batch["input_text"], add_special_tokens=True, truncation=False)
             return {"input_ids": input_enc["input_ids"]}
     
         tokenized_dataset = dataset.map(_tokenize_function, 
@@ -98,7 +96,6 @@ def main():
                                         num_proc=cfg.data.data_process_num_proc)
     
         tokenized_dataset = tokenized_dataset.remove_columns(old_cols)
-        print(tm.mm.tokenizer.decode(tokenized_dataset[0]["input_ids"]))
 
         collate_fn = DataCollatorWithPadding(tokenizer=tm.mm.tokenizer)
         

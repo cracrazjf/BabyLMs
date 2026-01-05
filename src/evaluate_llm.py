@@ -16,7 +16,7 @@ def main():
     cfg = EvaluationConfig()
     updates = {
         "model": {
-            # unsloth/Qwen3-8B-Base, unsloth/Meta-Llama-3.1-8B
+            # unsloth/Qwen3-8B-Base, unsloth/Meta-Llama-3.1-8B, unsloth/Qwen3-8B-Instruct, unsloth/Meta-Llama-3.1-8B-Instruct
             "name": "unsloth/Qwen3-8Bt",
             "path": f"unsloth/Qwen3-8B",
             "model_type": "qwen3-8b-instruct",

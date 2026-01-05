@@ -149,7 +149,7 @@ def prepare_evaluation_data(eval_type: str,
             for vocab in all_vocabs:
                 input_text = prompt_templates.format(X=vocab)
                 print(input_text)
-                f.write(json.dumps({"input_text": input_text}, ensure_ascii=False) + "\n")
+                f.write(json.dumps({"input_text": input_text, "target": f" {vocab}"}, ensure_ascii=False) + "\n")
                 
 
     if eval_type == "control":
