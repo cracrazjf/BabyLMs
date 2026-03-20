@@ -9,6 +9,8 @@ def create_accuracy_df(save_path):
     root_dir = Path("./results")
     models_accuracy_df_list = []
     for model_dir in root_dir.iterdir():
+        if model_dir.name == ".DS_Store":
+            continue
         model_name = model_dir.name
         print(f"Processing model: {model_name}")
         file = list(model_dir.glob("eval_results.jsonl"))[0]
@@ -69,6 +71,22 @@ def create_accuracy_df(save_path):
     raw_data = pd.read_excel("./data/ACL/LLM_Categories_stim.xlsx", sheet_name=None)
     category_dict = dict(zip(raw_data["probes"]["instance"], raw_data["probes"]["category"]))
     models_accuracy_df = pd.concat(models_accuracy_df_list, ignore_index=True)
+
+    num = models_accuracy_df["prompt_type"].str.extract(r"(\d+)$")[0]
+
+    # build prompt_key
+    models_accuracy_df["prompt_key"] = np.where(
+        models_accuracy_df["prompt_type"].str.contains("task specific", case=False, na=False),
+        models_accuracy_df["relationship"].astype(str) + num,                  # e.g. superordinate + 1 -> superordinate1
+        models_accuracy_df["prompt_type"].str.replace(" ", "", regex=False)    # e.g. control 1 -> control1
+    )
+
+    # remove the number from prompt_type, keeping only the text
+    models_accuracy_df["prompt_type"] = (
+        models_accuracy_df["prompt_type"]
+        .str.replace(r"\s*\d+$", "", regex=True)
+        .str.strip()
+    )
 
     probe_idx = models_accuracy_df.columns.get_loc("probe") + 1
     probe_category = models_accuracy_df["probe"].str.strip().map(category_dict)
